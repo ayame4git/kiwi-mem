@@ -1101,6 +1101,13 @@ async def chat_completions(request: Request):
     # v5.8：项目 ID（前端传来，用于项目指令/记忆/文件注入）
     project_id = body.pop('project_id', None) or None
 
+    # 先确定最终模型，后面的 prompt cache 判断要用它。
+    # 如果客户端没传 model，这里会补上默认值，避免误判为“非 Claude”而跳过缓存。
+    model = body.get("model", DEFAULT_MODEL)
+    if not model:
+        model = DEFAULT_MODEL
+    body["model"] = model
+
     mem_enabled = await get_memory_enabled()
     prompt_meta = {}
     if not skip_prompt:
@@ -1126,11 +1133,15 @@ async def chat_completions(request: Request):
                 messages.insert(0, {"role": "system", "content": enhanced_prompt})
             
             # ---- Prompt Caching：把 system message 拆成静态/动态两个 content block ----
-            # 只对 Claude 模型做，其他模型自动缓存不需要
+            # Anthropic/Claude 支持 OpenAI 兼容格式里的显式 cache_control 断点。
+            # Gemini/DeepSeek 等模型的缓存机制和请求格式不统一，避免在这里强行改写。
             _model_for_cache = body.get("model", "").lower()
-            is_claude = "claude" in _model_for_cache or "anthropic" in _model_for_cache
+            supports_explicit_cache = any(
+                name in _model_for_cache
+                for name in ("claude", "anthropic")
+            )
             cache_enabled_val = await get_config("prompt_cache_enabled")
-            cache_on = is_claude and (cache_enabled_val is None or str(cache_enabled_val).lower() != 'false')
+            cache_on = supports_explicit_cache and (cache_enabled_val is None or str(cache_enabled_val).lower() != 'false')
             
             if cache_on:
                 for i, msg in enumerate(messages):
@@ -1141,9 +1152,11 @@ async def chat_completions(request: Request):
                             static_part = static_part.rstrip()
                             dynamic_part = dynamic_part.strip()
                             
-                            content_blocks = [
-                                {"type": "text", "text": static_part, "cache_control": {"type": "ephemeral"}}
-                            ]
+                            content_blocks = [{
+                                "type": "text",
+                                "text": static_part,
+                                "cache_control": {"type": "ephemeral"},
+                            }]
                             if dynamic_part:
                                 content_blocks.append({"type": "text", "text": dynamic_part})
                             
@@ -1202,10 +1215,7 @@ async def chat_completions(request: Request):
             print(f"❌ 联网搜索出错: {e}")
     
     # ---------- 模型处理 ----------
-    model = body.get("model", DEFAULT_MODEL)
-    if not model:
-        model = DEFAULT_MODEL
-    body["model"] = model
+    # model 已在 prompt cache 判断前标准化，避免缺省 model 请求跳过缓存。
     
     # ---------- 供应商路由 ----------
     # 根据 model_id 查找已配置的供应商，找不到就用全局环境变量
