@@ -44,15 +44,9 @@ WEIGHT_IMPORTANCE = float(os.getenv("WEIGHT_IMPORTANCE", "0.15"))
 WEIGHT_RECENCY = float(os.getenv("WEIGHT_RECENCY", "0.1"))
 WEIGHT_HEAT = float(os.getenv("WEIGHT_HEAT", "0.25"))
 
-# 语义搜索最低相似度阈值（低于此值不返回）
-SEMANTIC_THRESHOLD = float(os.getenv("SEMANTIC_THRESHOLD", "0.25"))
-
 # RRF（Reciprocal Rank Fusion）参数
 # k 值越大，排名靠后的结果权重衰减越慢（推荐 60，业界标准）
 RRF_K = int(os.getenv("RRF_K", "60"))
-
-# 记忆去重阈值（字符重叠度，0-1）
-DEDUP_THRESHOLD = float(os.getenv("DEDUP_THRESHOLD", "0.55"))
 
 # API 配置（和 main.py 共用环境变量）
 API_KEY = os.getenv("API_KEY", "")
@@ -1142,6 +1136,9 @@ async def search_memories(query: str, limit: int = 10, track_recall: bool = True
     query_embedding = await get_embedding(query)
     
     heat_params = await get_heat_params()
+    from config import get_config_float
+    semantic_threshold = await get_config_float("semantic_threshold", fallback=0.25)
+    heat_params["_semantic_threshold"] = semantic_threshold
     
     if query_embedding is None:
         # embedding 失败，只用关键词搜索
@@ -1159,16 +1156,16 @@ async def search_memories(query: str, limit: int = 10, track_recall: bool = True
             v_only = sum(1 for r in results if r.get("_source") == "vector_only")
             k_only = sum(1 for r in results if r.get("_source") == "keyword_only")
             both = sum(1 for r in results if r.get("_source") == "both")
-            print(f"🔍 RRF 混合搜索 '{query[:30]}...' → 向量{len(vec_results)}条 + 关键词{len(kw_results)}条 → 合并top-{len(results)}（双命中{both}/仅向量{v_only}/仅关键词{k_only}）")
+            print(f"🔍 RRF 混合搜索 '{query[:30]}...' → 向量{len(vec_results)}条 + 关键词{len(kw_results)}条 → 合并top-{len(results)}（双命中{both}/仅向量{v_only}/仅关键词{k_only}，阈值{semantic_threshold:.3f}）")
         elif vec_results:
             results = vec_results[:limit]
-            print(f"🔍 向量搜索 '{query[:30]}...' → {len(vec_results)}条（关键词无结果）")
+            print(f"🔍 向量搜索 '{query[:30]}...' → {len(vec_results)}条（关键词无结果，阈值{semantic_threshold:.3f}）")
         elif kw_results:
             results = kw_results[:limit]
-            print(f"🔍 关键词搜索 '{query[:30]}...' → {len(kw_results)}条（向量无结果）")
+            print(f"🔍 关键词搜索 '{query[:30]}...' → {len(kw_results)}条（向量无结果，阈值{semantic_threshold:.3f}）")
         else:
             results = []
-            print(f"🔍 搜索 '{query[:30]}...' → 无结果")
+            print(f"🔍 搜索 '{query[:30]}...' → 无结果（阈值{semantic_threshold:.3f}）")
     
     # 打印 top-3 详情
     for r in results[:3]:
@@ -1195,6 +1192,7 @@ async def _vector_search(query_embedding: list, limit: int, heat_params: dict, p
     纯向量语义搜索 —— 不做召回追踪，仅返回评分结果。
     project_id: 提供时搜全局(NULL)+该项目；不提供时只搜全局(NULL)
     """
+    semantic_threshold = heat_params.get("_semantic_threshold", 0.25)
     pool = await get_pool()
     async with pool.acquire() as conn:
         # 构建项目过滤条件
@@ -1254,7 +1252,7 @@ async def _vector_search(query_embedding: list, limit: int, heat_params: dict, p
         
         sim = cosine_similarity(query_embedding, mem_embedding)
         
-        if sim < SEMANTIC_THRESHOLD:
+        if sim < semantic_threshold:
             continue
         
         _ca = row["created_at"]
@@ -1778,7 +1776,8 @@ async def check_memory_duplicate(new_content: str, threshold: float = None, new_
     而向量搜索更适合"模糊相关"的场景。
     """
     if threshold is None:
-        threshold = DEDUP_THRESHOLD
+        from config import get_config_float
+        threshold = await get_config_float("dedup_threshold", fallback=0.55)
 
     pool = await get_pool()
 
