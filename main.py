@@ -426,6 +426,13 @@ async def build_system_prompt_with_memories(user_message: str, user_msg_count: i
     8. Dream 犯困提示
     """
     active_prompt = await get_active_system_prompt()
+
+    # ---- 情绪标记指示（静态，系统级指令）----
+    # 情绪隐藏标记的生产端：指示聊天模型在高情绪轮打 <!--emotion:x--> 标记，
+    # 由 detect_emotion_from_response 解析。属系统机制而非人设内容，故代码注入。
+    active_prompt += ("\n\n【情绪标记】当你判断本轮对话情绪浓度明显时（用户表达强烈情绪、脆弱袒露、重要情感时刻），"
+                      "在回复的最末尾附加隐藏标记 <!--emotion:高--> 或 <!--emotion:中-->。日常对话不要加。"
+                      "该标记对用户不可见，供记忆系统识别情绪锚点使用。")
     prompt_meta = {}
     
     # ---- ① 用户画像（静态，一天不变）----
