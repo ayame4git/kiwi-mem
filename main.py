@@ -552,7 +552,6 @@ async def build_system_prompt_with_memories(user_message: str, user_msg_count: i
                 date_tag = ""
                 if mem.get("created_at"):
                     try:
-                        from datetime import datetime
                         dt = mem["created_at"]
                         if hasattr(dt, "strftime"):
                             date_tag = f"[{dt.strftime('%Y-%m-%d')}]"
