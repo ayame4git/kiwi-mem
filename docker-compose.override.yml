@@ -1,0 +1,13 @@
+services:
+  kiwi-mem:
+    ports: !override
+      - "127.0.0.1:8080:8080"
+    environment:
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-gemini-embedding-2}
+      EMBEDDING_DIMENSIONS: ${EMBEDDING_DIMENSIONS:-768}
+      SUPABASE_URL: ${SUPABASE_URL}
+      SUPABASE_SERVICE_KEY: ${SUPABASE_SERVICE_KEY}
+    volumes:
+      - ./database.py.patched:/app/database.py:ro
+      - ./main.py.patched:/app/main.py:ro
+      - ./gateway_usage.py:/app/gateway_usage.py:ro

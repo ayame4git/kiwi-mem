@@ -1,18 +1,18 @@
 """
-mcp_client.py — MCP 客户端模块（v2）
-================================
-让 gateway 作为 MCP 客户端，连接外部 MCP 服务器，获取工具并执行调用。
+mcp_client.py — MCP 客戶端模組（v2）
+==================================
+讓 gateway 作為 MCP 用戶端，連接外部 MCP 伺服器，取得工具並執行呼叫。
 
-支持传输格式：
-  - Streamable HTTP（远程部署，主要场景）
-  - SSE（旧版远程兼容）
-  - stdio（本地进程，预留接口）
+支援傳輸格式：
+  -Streamable HTTP（遠端部署，主要場景）
+  - SSE（舊版遠端相容）
+  - stdio（本地進程，預留介面）
 
 核心功能：
-  - 连接 MCP 服务器，列出可用工具
-  - 将 MCP 工具 schema 转换为 OpenAI function calling 格式
-  - 执行 tool_call，返回结果
-  - 工具列表缓存（避免每次请求都重新连接）
+  - 連接 MCP 伺服器，列出可用工具
+  - 將 MCP 工具 schema 轉換為 OpenAI function calling 格式
+  - 執行 tool_call，回傳結果
+  - 工具清單快取（避免每次請求都重新連線）
 """
 
 import json
@@ -38,7 +38,7 @@ def _cache_valid(url: str) -> bool:
 
 
 def clear_tool_cache(url: str = None):
-    """清除工具缓存"""
+    """清除工具快取"""
     if url:
         _tool_cache.pop(url, None)
     else:
@@ -46,13 +46,13 @@ def clear_tool_cache(url: str = None):
 
 
 # ============================================================
-# 连接 MCP 服务器 & 列出工具
+# 連接 MCP 伺服器 & 列出工具
 # ============================================================
 
 async def _connect_and_list(url: str, transport: str = "streamable_http") -> list:
     """
-    连接 MCP 服务器并获取工具列表
-    返回 MCP Tool 对象列表
+    連接 MCP 伺服器並取得工具列表
+    返回 MCP Tool 對象列表
     """
     try:
         if transport == "sse":
@@ -69,14 +69,14 @@ async def _connect_and_list(url: str, transport: str = "streamable_http") -> lis
                     result = await session.list_tools()
                     return list(result.tools)
     except Exception as e:
-        print(f"❌ MCP 连接失败 [{url}]: {e}")
+        print(f"❌ MCP 連線失敗 [{url}]: {e}")
         return []
 
 
 def _mcp_tool_to_openai(tool, server_url: str) -> dict:
     """
-    将 MCP Tool schema 转换为 OpenAI function calling 格式
-    在 function name 中不包含 server 信息（MCP tool name 本身已有前缀）
+    將 MCP Tool schema 轉換為 OpenAI function calling 格式
+    在 function name 中不包含 server 資訊（MCP tool name 本身已有前綴）
     """
     # 处理 inputSchema
     input_schema = tool.inputSchema or {}
@@ -100,12 +100,12 @@ def _mcp_tool_to_openai(tool, server_url: str) -> dict:
 
 async def get_tools_for_servers(servers: list[dict]) -> tuple[list[dict], dict]:
     """
-    获取多个 MCP 服务器的工具列表
+    取得多個 MCP 伺服器的工具列表
 
-    参数：
+    參數：
       servers: [{"url": "https://...", "transport": "streamable_http", "name": "..."}, ...]
 
-    返回：
+    回傳：
       (openai_tools, tool_map)
       - openai_tools: OpenAI function calling 格式的工具列表
       - tool_map: { tool_name: {"url": server_url, "transport": transport} }
@@ -121,18 +121,18 @@ async def get_tools_for_servers(servers: list[dict]) -> tuple[list[dict], dict]:
         if not url:
             continue
 
-        # 检查缓存
+        # 檢查快取
         if _cache_valid(url):
             cached = _tool_cache[url]
             for oa_tool in cached["tools"]:
                 tool_name = oa_tool["function"]["name"]
                 openai_tools.append(oa_tool)
                 tool_map[tool_name] = {"url": url, "transport": transport, "server_name": name}
-            print(f"🔧 MCP [{name}]: {len(cached['tools'])} 工具 (缓存)")
+            print(f"🔧 MCP [{name}]: {len(cached['tools'])} 工具 (快取)")
             continue
 
-        # 连接获取
-        print(f"🔧 MCP [{name}]: 连接中...")
+        # 連接獲取
+        print(f"🔧 MCP [{name}]: 連線中...")
         mcp_tools = await _connect_and_list(url, transport)
 
         if mcp_tools:
@@ -144,7 +144,7 @@ async def get_tools_for_servers(servers: list[dict]) -> tuple[list[dict], dict]:
             
             openai_tools.extend(oa_tools)
 
-            # 缓存
+            # 快取
             _tool_cache[url] = {
                 "tools": oa_tools,
                 "mcp_tools": mcp_tools,
@@ -152,7 +152,7 @@ async def get_tools_for_servers(servers: list[dict]) -> tuple[list[dict], dict]:
             }
             print(f"🔧 MCP [{name}]: {len(oa_tools)} 工具 ✓")
         else:
-            print(f"⚠️ MCP [{name}]: 无工具或连接失败")
+            print(f"⚠️ MCP [{name}]: 無工具或連線失敗")
 
     return openai_tools, tool_map
 
@@ -163,25 +163,25 @@ async def get_tools_for_servers(servers: list[dict]) -> tuple[list[dict], dict]:
 
 async def call_tool(tool_name: str, arguments: dict, tool_map: dict) -> str:
     """
-    执行一次 MCP 工具调用
+    執行一次 MCP 工具調用
 
-    参数：
-      tool_name: 工具名称（如 "notion_search"）
-      arguments: 工具参数
-      tool_map: get_tools_for_servers 返回的映射
+    參數：
+      tool_name: （如 "notion_search"）
+      arguments: 
+      tool_map: get_tools_for_servers
 
-    返回：
-      工具执行结果的文本
+    回傳：
+      工具執行結果文本
     """
     if tool_name not in tool_map:
-        return f"错误：未知工具 {tool_name}"
+        return f"錯誤：未知工具 {tool_name}"
 
     server_info = tool_map[tool_name]
     url = server_info["url"]
     transport = server_info["transport"]
     server_name = server_info.get("server_name", url)
 
-    print(f"🔨 调用工具 [{server_name}]: {tool_name}({json.dumps(arguments, ensure_ascii=False)[:200]})")
+    print(f"🔨 呼叫工具 [{server_name}]: {tool_name}({json.dumps(arguments, ensure_ascii=False)[:200]})")
 
     try:
         if transport == "sse":
@@ -199,22 +199,22 @@ async def call_tool(tool_name: str, arguments: dict, tool_map: dict) -> str:
                     return _format_tool_result(result)
 
     except Exception as e:
-        error_msg = f"工具调用失败 [{tool_name}]: {str(e)}"
+        error_msg = f"工具呼叫失敗 [{tool_name}]: {str(e)}"
         print(f"❌ {error_msg}")
         return error_msg
 
 
 def _format_tool_result(result) -> str:
-    """将 MCP CallToolResult 格式化为文本"""
+    """将 MCP CallToolResult 格式化為文字"""
     if not result or not result.content:
-        return "(空结果)"
+        return "(空結果)"
 
     parts = []
     for block in result.content:
         if hasattr(block, "text"):
             parts.append(block.text)
         elif hasattr(block, "data"):
-            parts.append(f"[二进制数据: {getattr(block, 'mimeType', 'unknown')}]")
+            parts.append(f"[二進位數據: {getattr(block, 'mimeType', 'unknown')}]")
         else:
             parts.append(str(block))
 
@@ -227,15 +227,15 @@ def _format_tool_result(result) -> str:
 
 async def call_tools_batch(calls: list, tool_map: dict) -> dict:
     """
-    批量执行 MCP 工具调用。
-    - 同一服务器的多个调用复用同一个连接（省去反复握手）
-    - 不同服务器的调用通过 asyncio.gather 并发执行
+    批量執行 MCP 工具呼叫。
+    - 同一伺服器的多個呼叫複用同一個連接（省去重複握手）
+    - 不同伺服器的呼叫透過 asyncio.gather 並發執行
 
-    参数:
+    參數:
       calls: [{"id": "...", "name": "...", "args": {...}}, ...]
       tool_map: { tool_name: {"url": ..., "transport": ..., "server_name": ...} }
 
-    返回:
+    回傳:
       { call_id: result_text }
     """
     if not calls:
@@ -259,7 +259,7 @@ async def call_tools_batch(calls: list, tool_map: dict) -> dict:
     results = {}
 
     async def _run_batch(url, transport, server_name, batch_calls):
-        """同一服务器的工具调用：只建一次连接，顺序执行"""
+        """同一伺服器的工具呼叫：只建一次連接，順序執行"""
         try:
             if transport == "sse":
                 async with sse_client(url) as (read, write):
@@ -270,7 +270,7 @@ async def call_tools_batch(calls: list, tool_map: dict) -> dict:
                                 result = await session.call_tool(c["name"], c["args"])
                                 results[c["id"]] = _format_tool_result(result)
                             except Exception as e:
-                                results[c["id"]] = f"工具调用失败 [{c['name']}]: {e}"
+                                results[c["id"]] = f"工具呼叫失敗 [{c['name']}]: {e}"
             else:
                 async with streamablehttp_client(url) as (read, write, _):
                     async with ClientSession(read, write) as session:
@@ -280,15 +280,15 @@ async def call_tools_batch(calls: list, tool_map: dict) -> dict:
                                 result = await session.call_tool(c["name"], c["args"])
                                 results[c["id"]] = _format_tool_result(result)
                             except Exception as e:
-                                results[c["id"]] = f"工具调用失败 [{c['name']}]: {e}"
+                                results[c["id"]] = f"工具呼叫失敗 [{c['name']}]: {e}"
 
-            print(f"🔧 MCP [{server_name}]: {len(batch_calls)} 个工具调用完成 ✓")
+            print(f"🔧 MCP [{server_name}]: {len(batch_calls)} 个工具呼叫完成 ✓")
 
         except Exception as e:
-            print(f"❌ MCP [{server_name}] 连接失败: {e}")
+            print(f"❌ MCP [{server_name}] 連線失敗: {e}")
             for c in batch_calls:
                 if c["id"] not in results:
-                    results[c["id"]] = f"服务器连接失败: {e}"
+                    results[c["id"]] = f"伺服器連線失敗: {e}"
 
     # 不同服务器并发执行
     tasks = [
@@ -301,6 +301,6 @@ async def call_tools_batch(calls: list, tool_map: dict) -> dict:
     # 填充未知工具的结果
     for c in calls:
         if c["id"] not in results:
-            results[c["id"]] = f"错误：未知工具 {c['name']}"
+            results[c["id"]] = f"錯誤：未知工具 {c['name']}"
 
     return results

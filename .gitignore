@@ -19,3 +19,5 @@ seed_memories.py
 # OS
 .DS_Store
 Thumbs.db
+ACCESS_TOKEN.txt
+system_prompt.txt
