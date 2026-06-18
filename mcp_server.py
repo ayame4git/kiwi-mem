@@ -1,19 +1,19 @@
 """
-MCP Server — kiwi-mem 记忆系统的 MCP 接口层
+MCP Server — kiwi-mem 記憶系統的 MCP 介面層
 ==========================================================
-按功能域拆分为独立模块，客户端只连需要的模块，不用的不占 token。
+依功能域拆分為獨立模組，客戶端只連需要的模組，不用的不佔 token。
 
 模块一：记忆碎片（/memory/mcp）— 6 个工具
   search_memory, save_memory, get_recent, trigger_digest, lock_memory, unlock_memory
 
-模块二：日历 + Dream（/calendar/mcp）— 11 个工具
+模块二：日曆 + Dream（/calendar/mcp）— 11 個工具
   get_day_page, get_calendar_range, save_calendar_page,
   get_comments, add_comment,
   get_user_profile,
   trigger_dream, get_dream_status, get_dream_history, get_dream_scenes, stop_dream
 
-部署方式：挂载到 FastAPI 主应用，共用同一个进程和端口。
-薄包装层：不直接碰数据库，通过 HTTP 调用网关自身的 API。
+部署方式：掛載到 FastAPI 主應用，共用同一個程序和連接埠。
+薄包裝層：不直接碰資料庫，透過 HTTP 呼叫網關本身的 API。
 """
 
 import os
@@ -46,13 +46,13 @@ async def search_memory(query: str, limit: int = 10) -> str:
     """
     [category: memory]
 
-    搜索记忆 — 用自然语言描述你想找的内容，向量语义搜索会返回最相关的记忆。
+    搜尋記憶 — 用自然語言描述你想找的內容，向量語意搜尋會回傳最相關的記憶。
 
-    参数：
-    - query: 搜索关键词或自然语言描述，比如"用户的健康记录"、"上周聊了什么"
-    - limit: 返回条数上限（默认10，最大50）
+    參數：
+    - query: 搜尋關鍵字或自然語言描述，例如"使用者的健康記錄"、"上週聊了什麼"
+    - limit: 傳回條數上限（預設10，最大50）
 
-    返回匹配的记忆列表，每条包含标题、内容、重要度、日期。
+    傳回符合的記憶列表，每條包含標題、內容、重要性、日期。
     """
     if limit > 50:
         limit = 50
@@ -66,14 +66,14 @@ async def search_memory(query: str, limit: int = 10) -> str:
             data = resp.json()
 
         if "error" in data:
-            return f"搜索失败：{data['error']}"
+            return f"搜尋失敗：{data['error']}"
 
         # /debug/memories 返回字段是 memories；保留对旧版 results 的兼容
         results = data.get("memories") or data.get("results", [])
         if not results:
-            return f"没有找到与「{query}」相关的记忆。"
+            return f"沒有找到與「{query}」相關的記憶。"
 
-        lines = [f"找到 {len(results)} 条相关记忆（共 {data.get('total_memories', '?')} 条）：\n"]
+        lines = [f"找到 {len(results)} 條相關記憶（共 {data.get('total_memories', '?')} 條）：\n"]
         for i, mem in enumerate(results, 1):
             title = mem.get("title", "")
             title_tag = f"【{title}】" if title else ""
@@ -84,13 +84,13 @@ async def search_memory(query: str, limit: int = 10) -> str:
 
             lines.append(
                 f"{i}. [{date}] {title_tag}{content}\n"
-                f"   重要度: {importance} | 类型: {memory_type}"
+                f"   重要度: {importance} | 類型: {memory_type}"
             )
 
         return "\n".join(lines)
 
     except Exception as e:
-        return f"搜索出错：{str(e)}"
+        return f"搜尋出錯：{str(e)}"
 
 
 @mcp_memory.tool()
@@ -98,17 +98,17 @@ async def save_memory(content: str, title: str = "", importance: int = 5) -> str
     """
     [category: memory]
 
-    保存一条新记忆到记忆库。
+    保存一條新記憶到記憶庫。
 
-    参数：
-    - content: 记忆内容（必填），比如"用户今天搬到了新城市"
-    - title: 标题（可选，4-10字概括），比如"台湾搬家"
-    - importance: 重要度 1-10（默认5），日常琐事1-4，重要事件5-6，关键转折7-8，核心记忆9-10
+    參數：
+    - content: 記憶內容（必填），例如"用戶今天搬到了新城市"
+    - title: 標題（可選，4-10字概括），如"台灣搬家"
+    - importance: 重要度 1-10（預設5），日常瑣事1-4，重要事件5-6，關鍵轉折7-8，核心記憶9-10
 
-    记忆保存后会自动生成向量，可以被语义搜索找到。
+    記憶保存後會自動產生向量，可以被語意搜尋找到。
     """
     if not content.strip():
-        return "内容不能为空。"
+        return "內容不能為空。 "
 
     if importance < 1:
         importance = 1
@@ -128,14 +128,14 @@ async def save_memory(content: str, title: str = "", importance: int = 5) -> str
             data = resp.json()
 
         if "error" in data:
-            return f"保存失败：{data['error']}"
+            return f"保存失敗：{data['error']}"
 
         total = data.get("total", "?")
         title_tag = f"【{title}】" if title else ""
-        return f"✅ 记忆已保存：{title_tag}{content[:60]}...\n重要度: {importance} | 记忆总数: {total}"
+        return f"✅ 記憶已保存：{title_tag}{content[:60]}...\n重要度: {importance} | 記憶總數: {total}"
 
     except Exception as e:
-        return f"保存出错：{str(e)}"
+        return f"保存出錯：{str(e)}"
 
 
 @mcp_memory.tool()
@@ -143,12 +143,12 @@ async def get_recent(limit: int = 20) -> str:
     """
     [category: memory]
 
-    获取最近的记忆，按时间倒序排列。
+    取得最近的記憶，按時間倒序排列。
 
-    参数：
-    - limit: 返回条数（默认20，最大50）
+    參數：
+    - limit: 返回條數（預設20，最大50）
 
-    用于快速了解最近发生了什么、最近聊了什么。
+    用於快速了解最近發生了什麼、最近聊了什麼。
     """
     if limit > 50:
         limit = 50
@@ -162,14 +162,14 @@ async def get_recent(limit: int = 20) -> str:
             data = resp.json()
 
         if "error" in data:
-            return f"获取失败：{data['error']}"
+            return f"獲取失敗：{data['error']}"
 
         # /debug/memories 返回字段是 memories；保留对旧版 results 的兼容
         results = data.get("memories") or data.get("results", [])
         if not results:
-            return "记忆库为空。"
+            return "記憶庫為空。"
 
-        lines = [f"最近 {len(results)} 条记忆（共 {data.get('total_memories', '?')} 条）：\n"]
+        lines = [f"最近 {len(results)} 條記憶（共 {data.get('total_memories', '?')} 條）：\n"]
         for i, mem in enumerate(results, 1):
             title = mem.get("title", "")
             title_tag = f"【{title}】" if title else ""
@@ -181,7 +181,7 @@ async def get_recent(limit: int = 20) -> str:
         return "\n".join(lines)
 
     except Exception as e:
-        return f"获取出错：{str(e)}"
+        return f"取得出錯：{str(e)}"
 
 
 @mcp_memory.tool()
@@ -189,13 +189,13 @@ async def trigger_digest(date: str = "") -> str:
     """
     [category: system_internal]
 
-    手动触发每日记忆整理 — 把当天的碎片记忆合并成独立事件条目。
+    手動觸發每日記憶整理 — 把當天的片段記憶合併成獨立事件條目。
 
-    参数：
-    - date: 要整理的日期，格式 YYYY-MM-DD（默认整理昨天的）
+    參數：
+    - date: 要整理的日期，格式 YYYY-MM-DD（預設整理昨天的）
 
-    通常不需要手动调用，系统每天凌晨自动执行。
-    只在需要立即整理时使用。
+    通常不需要手動調用，系統每天凌晨自動執行。 
+    只在需要立即整理時使用。
     """
     try:
         params = {}
@@ -210,12 +210,12 @@ async def trigger_digest(date: str = "") -> str:
             data = resp.json()
 
         if "error" in data:
-            return f"整理失败：{data['error']}"
+            return f"整理失敗：{data['error']}"
 
         return f"✅ 每日整理完成：{json.dumps(data, ensure_ascii=False, indent=2)}"
 
     except Exception as e:
-        return f"整理出错：{str(e)}"
+        return f"整理出錯：{str(e)}"
 
 
 @mcp_memory.tool()
@@ -223,12 +223,12 @@ async def lock_memory(memory_id: int) -> str:
     """
     [category: memory]
 
-    锁定一条记忆 — 锁定后热度永远为 1.0，不会衰减遗忘，每次聊天都会注入。
+    鎖定一條記憶 — 鎖定後熱度永遠為 1.0，不會衰減遺忘，每次聊天都會注入。
 
-    参数：
-    - memory_id: 记忆 ID（从搜索结果中获取）
+    參數：
+    - memory_id: 記憶 ID（從搜尋結果中取得）
 
-    用于标记核心记忆，比如重要的个人信息、关键决定、重要约定。
+    用於標記核心記憶，例如重要的個人資訊、關鍵決定、重要約定。
     """
     try:
         async with httpx.AsyncClient(timeout=10, headers=GATEWAY_HEADERS) as client:
@@ -239,12 +239,12 @@ async def lock_memory(memory_id: int) -> str:
             data = resp.json()
 
         if "error" in data:
-            return f"锁定失败：{data['error']}"
+            return f"鎖定失敗：{data['error']}"
 
-        return f"🔒 记忆 #{memory_id} 已锁定（永不遗忘）"
+        return f"🔒 記憶 #{memory_id} 已鎖定（永不遺忘）"
 
     except Exception as e:
-        return f"锁定出错：{str(e)}"
+        return f"鎖定出錯：{str(e)}"
 
 
 @mcp_memory.tool()
@@ -252,12 +252,12 @@ async def unlock_memory(memory_id: int) -> str:
     """
     [category: memory]
 
-    解锁一条记忆 — 解锁后恢复正常热度衰减。
+    解鎖一條記憶 — 解鎖後恢復正常熱度衰減。
 
-    参数：
-    - memory_id: 记忆 ID
+    參數：
+    - memory_id: 記憶 ID
 
-    用于取消之前锁定的记忆，让它回到正常的遗忘曲线。
+    用於取消之前鎖定的記憶，讓它回到正常的遺忘曲線。
     """
     try:
         async with httpx.AsyncClient(timeout=10, headers=GATEWAY_HEADERS) as client:
@@ -268,12 +268,12 @@ async def unlock_memory(memory_id: int) -> str:
             data = resp.json()
 
         if "error" in data:
-            return f"解锁失败：{data['error']}"
+            return f"解鎖失敗：{data['error']}"
 
-        return f"🔓 记忆 #{memory_id} 已解锁（恢复正常遗忘曲线）"
+        return f"🔓 記憶 #{memory_id} 已解鎖（恢復正常遺忘曲線）"
 
     except Exception as e:
-        return f"解锁出错：{str(e)}"
+        return f"解鎖出錯：{str(e)}"
 
 
 # ============================================================
@@ -290,16 +290,16 @@ async def get_day_page(date: str, type: str = "day") -> str:
     """
     [category: calendar]
 
-    查看某一天的日历页面（日记/周总结/月总结等）。
+    查看某一天的日曆頁面（日記/週總結/月總結等）。
 
-    参数：
+    参數：
     - date: 日期，格式 YYYY-MM-DD，如 "2026-04-14"
-    - type: 页面类型，可选 day/week/month/quarter/year（默认 day）
+    - type: 頁面類型，可選 day/week/month/quarter/year（預設 day）
 
-    返回这一天的标题、内容概要、时段详情和 AI 日记。
+    返回這一天的標題、內容摘要、時段詳情和 AI 日記。
     """
     if not date.strip():
-        return "请提供日期，格式 YYYY-MM-DD"
+        return "請提供日期，格式 YYYY-MM-DD"
 
     try:
         async with httpx.AsyncClient(timeout=15, headers=GATEWAY_HEADERS) as client:
@@ -310,11 +310,11 @@ async def get_day_page(date: str, type: str = "day") -> str:
             data = resp.json()
 
         if "error" in data:
-            return f"读取出错：{data['error']}"
+            return f"讀取出錯：{data['error']}"
 
         page = data.get("page")
         if not page:
-            return f"没有找到 {date} 的{type}页面。"
+            return f"沒有找到 {date} 的{type}頁面。"
 
         title = page.get("title", "")
         summary = page.get("summary", "")
@@ -322,7 +322,7 @@ async def get_day_page(date: str, type: str = "day") -> str:
         diary = page.get("diary", "")
         keywords = page.get("keywords") or []
 
-        lines = [f"📅 {date} 的{type}页面"]
+        lines = [f"📅 {date} 的{type}頁面"]
         if title:
             lines[0] += f" — {title}"
         lines.append("")
@@ -338,16 +338,16 @@ async def get_day_page(date: str, type: str = "day") -> str:
                 lines.append(f"**{period} — {sec_title}**\n{content}\n")
 
         if diary:
-            lines.append(f"📝 AI 的日记：{diary}")
+            lines.append(f"📝 AI 的日記：{diary}")
 
         if keywords:
             kw = "、".join(keywords[:15]) if isinstance(keywords, list) else str(keywords)
-            lines.append(f"\n🏷 关键词：{kw}")
+            lines.append(f"\n🏷 關鍵字：{kw}")
 
         return "\n".join(lines)
 
     except Exception as e:
-        return f"读取出错：{str(e)}"
+        return f"讀取出錯：{str(e)}"
 
 
 @mcp_calendar.tool()
@@ -358,14 +358,14 @@ async def get_calendar_range(start: str, end: str, type: str = "") -> str:
     查看一段时间内的日历页面列表。
 
     参数：
-    - start: 开始日期，格式 YYYY-MM-DD
-    - end: 结束日期，格式 YYYY-MM-DD
-    - type: 过滤类型（可选），day/week/month/quarter/year，留空返回所有类型
+    - start: 開始日期，格式 YYYY-MM-DD
+    - end: 結束日期，格式 YYYY-MM-DD
+    - type: 過濾類型（可選），day/week/month/quarter/year，留空回傳所有類型
 
-    返回每个页面的日期、类型、标题和关键词概览。
+    傳回每個頁面的日期、類型、標題和關鍵字概覽。
     """
     if not start.strip() or not end.strip():
-        return "请提供起止日期，格式 YYYY-MM-DD"
+        return "請提供起止日期，格式 YYYY-MM-DD"
 
     try:
         params = {"start": start.strip(), "end": end.strip()}
@@ -377,13 +377,13 @@ async def get_calendar_range(start: str, end: str, type: str = "") -> str:
             data = resp.json()
 
         if "error" in data:
-            return f"查询失败：{data['error']}"
+            return f"查詢失敗：{data['error']}"
 
         pages = data.get("pages", [])
         if not pages:
-            return f"{start} ~ {end} 没有日历页面。"
+            return f"{start} ~ {end} 沒有日曆頁面。"
 
-        lines = [f"📅 {start} ~ {end} 共 {len(pages)} 个页面：\n"]
+        lines = [f"📅 {start} ~ {end} 共 {len(pages)} 個頁面：\n"]
         for p in pages:
             d = p.get("date", "")
             t = p.get("type", "day")
@@ -404,7 +404,7 @@ async def get_calendar_range(start: str, end: str, type: str = "") -> str:
         return "\n".join(lines)
 
     except Exception as e:
-        return f"查询出错：{str(e)}"
+        return f"查詢出錯：{str(e)}"
 
 
 @mcp_calendar.tool()
@@ -412,20 +412,20 @@ async def save_calendar_page(date: str, content: str, title: str = "", type: str
     """
     [category: calendar]
 
-    写入或更新日历页面（日记）。
+    寫入或更新日曆頁面（日記）。
 
     参数：
     - date: 日期，格式 YYYY-MM-DD
     - content: 正文内容（Markdown 格式）
-    - title: 标题（可选）
-    - type: 页面类型，day/week/month/quarter/year（默认 day）
+    - title: 標題（可選）
+    - type: 頁面類型，day/week/month/quarter/year（默認 day）
 
-    用于 AI 在对话中为用户写日记、补充周记等。
+    用於 AI 在對話中為使用者寫日記、補充週記等。
     """
     if not date.strip():
-        return "请提供日期，格式 YYYY-MM-DD"
+        return "請提供日期，格式 YYYY-MM-DD"
     if not content.strip():
-        return "内容不能为空。"
+        return "內容不能為空。"
 
     try:
         async with httpx.AsyncClient(timeout=15, headers=GATEWAY_HEADERS) as client:
@@ -440,13 +440,13 @@ async def save_calendar_page(date: str, content: str, title: str = "", type: str
             data = resp.json()
 
         if "error" in data:
-            return f"保存失败：{data['error']}"
+            return f"保存失敗：{data['error']}"
 
         page_id = data.get("id", "?")
-        return f"✅ 日历页面已保存：{date}（{type}）| ID: {page_id}"
+        return f"✅ 日曆頁面已儲存：{date}（{type}）| ID: {page_id}"
 
     except Exception as e:
-        return f"保存出错：{str(e)}"
+        return f"保存出錯：{str(e)}"
 
 
 # ---- 评论 ----
@@ -456,13 +456,13 @@ async def get_comments(target_type: str, target_id: int) -> str:
     """
     [category: calendar]
 
-    读取某个页面的评论列表。
+    讀取某個頁面的評論清單。
 
     参数：
-    - target_type: 目标类型，如 "day_page"、"scene"
-    - target_id: 目标 ID（日历页面的 ID 或场景的 ID）
+    - target_type: 目標類型，如 "day_page"、"scene"
+    - target_id: 目標 ID（日曆頁面的 ID 或場景的 ID）
 
-    返回该页面下的所有评论。
+    返回該頁面下的所有評論。
     """
     try:
         async with httpx.AsyncClient(timeout=10, headers=GATEWAY_HEADERS) as client:
@@ -473,13 +473,13 @@ async def get_comments(target_type: str, target_id: int) -> str:
             data = resp.json()
 
         if "error" in data:
-            return f"读取失败：{data['error']}"
+            return f"讀取失敗：{data['error']}"
 
         comments = data.get("comments", [])
         if not comments:
-            return "暂无评论。"
+            return "暫無評論。"
 
-        lines = [f"💬 共 {len(comments)} 条评论：\n"]
+        lines = [f"💬 共 {len(comments)} 條評論：\n"]
         for c in comments:
             author = c.get("author", "?")
             content = c.get("content", "")
@@ -492,7 +492,7 @@ async def get_comments(target_type: str, target_id: int) -> str:
         return "\n".join(lines)
 
     except Exception as e:
-        return f"读取出错：{str(e)}"
+        return f"讀取出錯：{str(e)}"
 
 
 @mcp_calendar.tool()
@@ -503,15 +503,15 @@ async def add_comment(target_type: str, target_id: int, content: str, parent_id:
     在日历页面或场景下添加评论。
 
     参数：
-    - target_type: 目标类型，如 "day_page"、"scene"
-    - target_id: 目标 ID
-    - content: 评论内容
-    - parent_id: 回复的评论 ID（0 表示顶层评论）
+    - target_type: 目標類型，如 "day_page"、"scene"
+    - target_id: 目標 ID
+    - content: 評論內容
+    - parent_id: 回覆的評論 ID（0 表示頂層評論）
 
-    AI 可以用这个工具在日记下面写备注、标记或补充。
+    AI 可以用這個工具在日記下方寫備註、標記或補充。
     """
     if not content.strip():
-        return "评论内容不能为空。"
+        return "評論內容不能為空。"
 
     try:
         body = {
@@ -531,14 +531,14 @@ async def add_comment(target_type: str, target_id: int, content: str, parent_id:
             data = resp.json()
 
         if "error" in data:
-            return f"评论失败：{data['error']}"
+            return f"評論失敗：{data['error']}"
 
         comment = data.get("comment", {})
         cid = comment.get("id", "?")
-        return f"✅ 评论已发布（#{cid}）"
+        return f"✅ 評論已發布（#{cid}）"
 
     except Exception as e:
-        return f"评论出错：{str(e)}"
+        return f"評論出錯：{str(e)}"
 
 
 # ---- 用户画像 ----
@@ -548,10 +548,10 @@ async def get_user_profile() -> str:
     """
     [category: profile]
 
-    查看当前的用户画像 — AI 对用户的认知。
+    查看當前的使用者畫像 — AI 對使用者的認知。
 
-    画像包含四个板块：基本档案、洞察、近期重点、长期偏好。
-    由每日整理自动更新，也可手动触发更新。
+    畫像包含四個板塊：基本檔案、洞察、近期重點、長期偏好。 
+    由每日整理自動更新，也可手動觸發更新。
     """
     try:
         async with httpx.AsyncClient(timeout=10, headers=GATEWAY_HEADERS) as client:
@@ -560,12 +560,12 @@ async def get_user_profile() -> str:
 
         profile = data.get("user_profile", {}).get("value", "")
         if not profile:
-            return "暂无用户画像。"
+            return "暫無使用者畫像。"
 
-        return f"🪞 用户画像\n\n{profile}"
+        return f"🪞 使用者畫像\n\n{profile}"
 
     except Exception as e:
-        return f"读取出错：{str(e)}"
+        return f"讀取出錯：{str(e)}"
 
 
 # ---- Dream ----
@@ -575,10 +575,10 @@ async def trigger_dream() -> str:
     """
     [category: dream]
 
-    让 AI 去睡觉（触发 Dream 记忆整合）。
+    讓 AI 去睡覺（觸發 Dream 記憶整合）。
 
-    Dream 会整理碎片记忆、形成记忆场景（MemScene）、产生前瞻信号（Foresight）。
-    通常在碎片堆积较多或长时间未整理时使用。
+    Dream 會整理片段記憶、形成記憶場景（MemScene）、產生前瞻訊號（Foresight）。 
+    通常在碎片堆積較多或長時間未整理時使用。
     """
     try:
         # /dream/start 返回 SSE 流（StreamingResponse），Dream 实际跑 1-5 分钟。
@@ -595,7 +595,7 @@ async def trigger_dream() -> str:
             ) as resp:
                 if resp.status_code != 200:
                     body = (await resp.aread()).decode("utf-8", errors="ignore")[:300]
-                    return f"Dream 启动失败（HTTP {resp.status_code}）：{body}"
+                    return f"Dream 啟動失敗（HTTP {resp.status_code}）：{body}"
 
                 first_data = ""
                 async for line in resp.aiter_lines():
@@ -605,19 +605,19 @@ async def trigger_dream() -> str:
                         break
 
         if not first_data:
-            return "🌙 Dream 已启动，可以用 get_dream_status 查看进度。"
+            return "🌙 Dream 已啟動，可以用 get_dream_status 查看進度。"
 
         # 错误事件
         if first_data.startswith("{") and '"error"' in first_data.lower():
-            return f"Dream 启动失败：{first_data[:200]}"
+            return f"Dream 啟動失敗：{first_data[:200]}"
 
-        return f"🌙 Dream 已启动：{first_data[:200]}\n后续可用 get_dream_status 查看进度。"
+        return f"🌙 Dream 已啟動：{first_data[:200]}\n後續可用 get_dream_status 查看進度。 "
 
     except httpx.TimeoutException:
         # 60s 内连首个事件都没到, 但请求已发出, Dream 多半已在后台跑了
-        return "🌙 Dream 已启动（首事件超时未到，可用 get_dream_status 确认）"
+        return "🌙 Dream 已啟動（首事件逾時未到，可用 get_dream_status 確認）"
     except Exception as e:
-        return f"启动出错：{type(e).__name__}: {e}"
+        return f"啟動出錯：{type(e).__name__}: {e}"
 
 
 @mcp_calendar.tool()
@@ -625,9 +625,9 @@ async def stop_dream() -> str:
     """
     [category: dream]
 
-    中断正在进行的 Dream。
+    中斷正在進行的 Dream。
 
-    用于在 Dream 过程中需要紧急打断时使用。
+    用於在 Dream 過程中需要緊急打斷時使用。
     """
     try:
         async with httpx.AsyncClient(timeout=10, headers=GATEWAY_HEADERS) as client:
@@ -635,12 +635,12 @@ async def stop_dream() -> str:
             data = resp.json()
 
         if "error" in data:
-            return f"中断失败：{data['error']}"
+            return f"中斷失敗：{data['error']}"
 
-        return f"⏹ Dream 已中断：{json.dumps(data, ensure_ascii=False)}"
+        return f"⏹ Dream 已中斷：{json.dumps(data, ensure_ascii=False)}"
 
     except Exception as e:
-        return f"中断出错：{str(e)}"
+        return f"中斷出錯：{str(e)}"
 
 
 @mcp_calendar.tool()
@@ -648,7 +648,7 @@ async def get_dream_status() -> str:
     """
     [category: dream]
 
-    查看 Dream 状态 — 是否正在做梦、上次做梦的结果、待处理碎片数量。
+    看看 Dream 狀態 — 是否正在做夢、上次做夢的結果、待處理碎片數量。
     """
     try:
         async with httpx.AsyncClient(timeout=10, headers=GATEWAY_HEADERS) as client:
@@ -660,7 +660,7 @@ async def get_dream_status() -> str:
 
         lines = []
         if is_running:
-            lines.append("🌙 AI 正在做梦中…")
+            lines.append("🌙 AI Dreaming.")
             current = data.get("current", {})
             if current:
                 lines.append(f"   Dream #{current.get('id', '?')} | 开始于 {str(current.get('started_at', ''))[:19]}")
@@ -671,20 +671,20 @@ async def get_dream_status() -> str:
         unprocessed = data.get("unprocessed_count", 0)
         drowsy = data.get("is_drowsy", False)
         if unprocessed > 0:
-            drowsy_tag = "（已犯困，建议做梦）" if drowsy else ""
-            lines.append(f"   待处理碎片：{unprocessed} 条{drowsy_tag}")
+            drowsy_tag = "（已犯困，建議Dream）" if drowsy else ""
+            lines.append(f"   待處理碎片：{unprocessed} 條{drowsy_tag}")
 
         if last:
             lines.append(f"\n上次 Dream：#{last.get('id', '?')}")
-            lines.append(f"   时间：{str(last.get('started_at', ''))[:19]} → {str(last.get('finished_at', ''))[:19]}")
-            lines.append(f"   处理碎片：{last.get('memories_processed', 0)} 条")
-            lines.append(f"   删除：{last.get('memories_deleted', 0)} | 合并：{last.get('memories_merged', 0)}")
-            lines.append(f"   新建场景：{last.get('scenes_created', 0)} | 前瞻信号：{last.get('foresights_generated', 0)}")
+            lines.append(f"   時間：{str(last.get('started_at', ''))[:19]} → {str(last.get('finished_at', ''))[:19]}")
+            lines.append(f"   處理碎片：{last.get('memories_processed', 0)} 條")
+            lines.append(f"   刪除：{last.get('memories_deleted', 0)} | 合併：{last.get('memories_merged', 0)}")
+            lines.append(f"   新建場景：{last.get('scenes_created', 0)} | 前瞻訊號：{last.get('foresights_generated', 0)}")
 
-        return "\n".join(lines) if lines else "暂无 Dream 记录。"
+        return "\n".join(lines) if lines else "暫無 Dream 記錄。"
 
     except Exception as e:
-        return f"查询出错：{str(e)}"
+        return f"查詢出錯：{str(e)}"
 
 
 @mcp_calendar.tool()
@@ -692,12 +692,12 @@ async def get_dream_history(limit: int = 10) -> str:
     """
     [category: dream]
 
-    查看 Dream 执行历史记录。
+    查看 Dream 執行歷史記錄。
 
     参数：
-    - limit: 返回条数（默认10）
+    - limit: 傳回條數（預設10）
 
-    显示每次 Dream 的时间、处理碎片数、新建场景数等。
+    顯示每次 Dream 的時間、處理碎片數、新場景數等。
     """
     if limit > 50:
         limit = 50
@@ -711,13 +711,13 @@ async def get_dream_history(limit: int = 10) -> str:
             data = resp.json()
 
         if "error" in data:
-            return f"查询失败：{data['error']}"
+            return f"查詢失敗：{data['error']}"
 
         history = data.get("history", [])
         if not history:
-            return "还没有 Dream 记录。"
+            return "還沒有 Dream 記錄。"
 
-        lines = [f"🌙 Dream 历史（最近 {len(history)} 次）：\n"]
+        lines = [f"🌙 Dream 歷史（最近 {len(history)} 次）：\n"]
         for h in history:
             did = h.get("id", "?")
             status = h.get("status", "?")
@@ -732,13 +732,13 @@ async def get_dream_history(limit: int = 10) -> str:
             status_icon = {"completed": "✅", "running": "🔄", "interrupted": "⏹", "failed": "❌"}.get(status, "❓")
             lines.append(
                 f"{status_icon} Dream #{did} | {started} → {finished}\n"
-                f"   碎片: {processed} | 删除: {deleted} | 合并: {merged} | 场景: {scenes} | 前瞻: {foresights}"
+                f"   碎片: {processed} | 刪除: {deleted} | 合併: {merged} | 場景: {scenes} | 前瞻: {foresights}"
             )
 
         return "\n".join(lines)
 
     except Exception as e:
-        return f"查询出错：{str(e)}"
+        return f"查詢出錯：{str(e)}"
 
 
 @mcp_calendar.tool()
@@ -746,10 +746,10 @@ async def get_dream_scenes() -> str:
     """
     [category: dream]
 
-    查看所有活跃的记忆场景（MemScene）。
+    查看所有活躍的記憶場景（MemScene）。
 
-    记忆场景是 Dream 过程中将相关碎片记忆凝聚成的主题叙事。
-    每个场景包含标题、叙事文本和前瞻信号（Foresight）。
+    記憶場景是 Dream 過程中將相關片段記憶凝聚成的主題敘事。 
+    每個場景包含標題、敘事文字和前瞻性訊號（Foresight）。
     """
     try:
         async with httpx.AsyncClient(timeout=10, headers=GATEWAY_HEADERS) as client:
@@ -757,22 +757,22 @@ async def get_dream_scenes() -> str:
             data = resp.json()
 
         if "error" in data:
-            return f"查询失败：{data['error']}"
+            return f"查詢失敗：{data['error']}"
 
         scenes = data.get("scenes", [])
         if not scenes:
-            return "还没有记忆场景。"
+            return "還沒有記憶場景。"
 
-        lines = [f"🎭 活跃场景共 {len(scenes)} 个：\n"]
+        lines = [f"🎭 活躍場景共 {len(scenes)} 個：\n"]
         for s in scenes:
             sid = s.get("id", "?")
-            title = s.get("title", "无标题")
+            title = s.get("title", "無標題")
             narrative = s.get("narrative", "")
             foresight = s.get("foresight") or []
             created = str(s.get("created_at", ""))[:10]
             memory_count = s.get("memory_count", 0)
 
-            lines.append(f"🎬 #{sid}「{title}」({created}，{memory_count} 条碎片)")
+            lines.append(f"🎬 #{sid}「{title}」({created}，{memory_count} 條碎片)")
             if narrative:
                 lines.append(f"   {narrative[:120]}{'…' if len(narrative) > 120 else ''}")
             if foresight:
@@ -784,7 +784,7 @@ async def get_dream_scenes() -> str:
         return "\n".join(lines)
 
     except Exception as e:
-        return f"查询出错：{str(e)}"
+        return f"查詢出錯：{str(e)}"
 
 
 # ============================================================
@@ -793,18 +793,18 @@ async def get_dream_scenes() -> str:
 
 def get_memory_mcp_app():
     """
-    记忆碎片模块 MCP。
-    挂载路径：/memory → URL：/memory/mcp
-    6 个工具：search_memory, save_memory, get_recent, trigger_digest, lock_memory, unlock_memory
+    記憶碎片模組 MCP。
+    掛載路徑：/memory → URL：/memory/mcp
+    6 個工具：search_memory, save_memory, get_recent, trigger_digest, lock_memory, unlock_memory
     """
     return mcp_memory.streamable_http_app()
 
 
 def get_calendar_mcp_app():
     """
-    日历 + Dream 模块 MCP。
-    挂载路径：/calendar → URL：/calendar/mcp
-    11 个工具：get_day_page, get_calendar_range, save_calendar_page,
+    日曆 + Dream 模組 MCP。
+    掛載路徑：/calendar → URL：/calendar/mcp
+    11 個工具：get_day_page, get_calendar_range, save_calendar_page,
               get_comments, add_comment, get_user_profile,
               trigger_dream, stop_dream, get_dream_status, get_dream_history, get_dream_scenes
     """
@@ -815,5 +815,5 @@ def get_calendar_mcp_app():
 mcp = mcp_memory
 
 def get_mcp_app():
-    """向后兼容：返回记忆模块"""
+    """向後相容：返回記憶模組"""
     return get_memory_mcp_app()

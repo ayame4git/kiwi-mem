@@ -1,6 +1,6 @@
 """
-Anthropic API 格式适配器
-将 OpenAI 格式的请求/响应与 Anthropic Messages API 格式互相转换
+Anthropic API 格式適配器
+將 OpenAI 格式的請求/回應與 Anthropic Messages API 格式互相轉換
 
 OpenAI format:    POST /v1/chat/completions
 Anthropic format: POST /v1/messages
@@ -22,7 +22,7 @@ from typing import AsyncGenerator
 # ============================================================
 
 def to_anthropic_request(openai_body: dict) -> dict:
-    """将 OpenAI chat/completions 请求体转换为 Anthropic Messages API 格式"""
+    """將 OpenAI chat/completions 請求體轉換為 Anthropic Messages API 格式"""
     messages = list(openai_body.get("messages", []))
 
     # ── 提取 system message（可能多条，合并） ──
@@ -95,7 +95,7 @@ def to_anthropic_request(openai_body: dict) -> dict:
 
 
 def to_anthropic_headers(api_key: str) -> dict:
-    """生成 Anthropic API 请求头"""
+    """生成 Anthropic API 請求端"""
     return {
         "x-api-key": api_key,
         "anthropic-version": "2023-06-01",
@@ -104,11 +104,11 @@ def to_anthropic_headers(api_key: str) -> dict:
 
 
 def get_anthropic_url(base_url: str) -> str:
-    """将 base URL 转换为 Anthropic messages 端点
+    """將 base URL 轉換為 Anthropic messages 端點
     
-    输入示例：
+    輸入範例：
       https://api.anthropic.com/v1           → .../v1/messages
-      https://api.anthropic.com/v1/messages  → 不变
+      https://api.anthropic.com/v1/messages  → 不變
       https://xxx.com/v1/chat/completions    → .../v1/messages
       https://xxx.com                        → .../v1/messages
     """
@@ -127,9 +127,9 @@ def get_anthropic_url(base_url: str) -> str:
 # ============================================================
 
 def from_anthropic_response(anthropic_data: dict, model: str = "") -> dict:
-    """将 Anthropic Messages API 响应转换为 OpenAI chat/completions 格式"""
+    """將 Anthropic Messages API 回應轉換為 OpenAI chat/completions 格式"""
 
-    # ── 错误处理 ──
+    # ── 錯誤處理 ──
     if anthropic_data.get("type") == "error" or "error" in anthropic_data:
         err = anthropic_data.get("error", {})
         return {
@@ -220,12 +220,12 @@ def from_anthropic_response(anthropic_data: dict, model: str = "") -> dict:
 
 def prepare_background_request(api_key: str, api_format: str, openai_body: dict,
                                referer: str = None, title: str = None) -> tuple:
-    """根据 api_format 构造后台请求，返回 (headers, send_body)。
+    """根據 api_format 建構後台請求，返回(headers, send_body)。
 
-    - anthropic：x-api-key + anthropic-version，body 转 Anthropic Messages 格式
-    - openai：Bearer，body 原样（可带 OpenRouter 的 Referer/Title 归因头）
+    - anthropic：x-api-key + anthropic-version，body 轉 Anthropic Messages 格式
+    - openai：Bearer，body 原樣（可帶 OpenRouter 的 Referer/Title 來源標頭）
 
-    URL 已由 resolve_model_endpoint 按 api_format 给出，调用方直接用。
+    URL 已由 resolve_model_endpoint 按 api_format 給出，呼叫方直接用。
     """
     if api_format == "anthropic":
         return to_anthropic_headers(api_key), to_anthropic_request(openai_body)

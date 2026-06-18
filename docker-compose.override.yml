@@ -11,3 +11,6 @@ services:
       - ./database.py.patched:/app/database.py:ro
       - ./main.py.patched:/app/main.py:ro
       - ./gateway_usage.py:/app/gateway_usage.py:ro
+      - ./admin-panel:/app/admin-panel:ro   
+      - ./config.py:/app/config.py:ro 
+      - ./admin-panel:/app/admin-panel:ro
