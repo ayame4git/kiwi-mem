@@ -18,7 +18,7 @@ Technically, it's a lightweight proxy gateway that sits between you and any LLM,
 
 **Stack**: Python / FastAPI · PostgreSQL + pgvector · Docker · AGPL-3.0-or-later
 
-![Feature overview](docs/feature-overview.png)
+![Feature overview](docs/feature-overview2.png)
 
 ---
 
