@@ -2898,6 +2898,67 @@ async def api_generate_month_summary(month: str = None):
         return {"error": str(e)}
 
 
+@app.get("/admin/quarter-summary")
+async def api_generate_quarter_summary(quarter: str = None):
+    """手动触发季度总结 ?quarter=2026-Q1"""
+    try:
+        from daily_digest import generate_period_summary
+        import calendar as cal_mod
+        from datetime import timedelta as td, timezone as tz_mod, datetime as dt_cls
+
+        if not quarter:
+            TZ = tz_mod(td(hours=8))
+            now = dt_cls.now(TZ)
+            cur_q = (now.month - 1) // 3 + 1
+            target_q = cur_q - 1
+            target_y = now.year
+            if target_q <= 0:
+                target_q = 4
+                target_y -= 1
+            quarter = f"{target_y}-Q{target_q}"
+
+        parts = quarter.split("-Q")
+        if len(parts) != 2:
+            return {"error": f"无效格式: {quarter!r}，需要 YYYY-QN（如 2026-Q1）"}
+        year = int(parts[0])
+        q = int(parts[1])
+        if q < 1 or q > 4:
+            return {"error": f"无效季度: Q{q}，需要 Q1-Q4"}
+        q_start_month = (q - 1) * 3 + 1
+        q_end_month = q_start_month + 2
+        start = f"{year}-{q_start_month:02d}-01"
+        q_end_day = cal_mod.monthrange(year, q_end_month)[1]
+        end = f"{year}-{q_end_month:02d}-{q_end_day:02d}"
+        label = f"{year}Q{q}"
+
+        result = await generate_period_summary(start, end, "quarter", label, "月总结")
+        return {"status": "ok", **result}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@app.get("/admin/year-summary")
+async def api_generate_year_summary(year: str = None):
+    """手动触发年度总结 ?year=2025"""
+    try:
+        from daily_digest import generate_period_summary
+        from datetime import timedelta as td, timezone as tz_mod, datetime as dt_cls
+
+        if not year:
+            TZ = tz_mod(td(hours=8))
+            now = dt_cls.now(TZ)
+            year = str(now.year - 1)
+
+        y = int(year)
+        start = f"{y}-01-01"
+        end = f"{y}-12-31"
+
+        result = await generate_period_summary(start, end, "year", str(y), "季度总结")
+        return {"status": "ok", **result}
+    except Exception as e:
+        return {"error": str(e)}
+
+
 @app.get("/calendar/{date}")
 async def api_get_calendar_day(date: str, type: str = "day"):
     """获取指定日期的日历页面"""
