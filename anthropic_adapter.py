@@ -238,7 +238,7 @@ def prepare_background_request(api_key: str, api_format: str, openai_body: dict,
 
 
 def parse_background_response(data: dict, api_format: str) -> dict:
-    """把后台任务的响应统一成 OpenAI chat.completion 结构。"""
+    """把後台任務的回應統一成 OpenAI chat.completion 結構。"""
     return from_anthropic_response(data) if api_format == "anthropic" else data
 
 
@@ -247,13 +247,13 @@ def parse_background_response(data: dict, api_format: str) -> dict:
 # ============================================================
 
 async def anthropic_stream_to_openai(response, model: str = "") -> AsyncGenerator[bytes, None]:
-    """将 Anthropic SSE 流转换为 OpenAI SSE 格式的 bytes 流
+    """將 Anthropic SSE 流轉換為 OpenAI SSE 格式的 bytes 流
 
-    Anthropic 事件类型：
+    Anthropic 事件類型：
       message_start → content_block_start → content_block_delta → content_block_stop
       → message_delta → message_stop
 
-    转换为 OpenAI 格式：
+    轉換為 OpenAI 格式：
       data: {"choices": [{"delta": {...}}]}
       data: [DONE]
     """
@@ -379,7 +379,7 @@ async def anthropic_stream_to_openai(response, model: str = "") -> AsyncGenerato
 # ============================================================
 
 def _strip_model_prefix(model: str) -> str:
-    """去掉 OpenRouter 风格前缀：anthropic/claude-sonnet-4 → claude-sonnet-4"""
+    """去掉 OpenRouter 風格前綴：anthropic/claude-sonnet-4 → claude-sonnet-4"""
     return model.split("/", 1)[1] if "/" in model else model
 
 
@@ -418,10 +418,10 @@ def _image_url_to_anthropic_source(url: str):
 
 
 def _convert_content_blocks(content):
-    """把 OpenAI 风格的 content blocks 列表转成 Anthropic 风格。
+    """把 OpenAI 風格的 content blocks 清單轉成 Anthropic 風格。
 
-    主要处理 image_url → image；text 和已是 Anthropic 格式的块（含 cache_control）
-    原样保留。非 list 直接返回。
+    主要處理 image_url → image；text 和已是 Anthropic 格式的區塊（含 cache_control）
+    原樣保留。非 list 直接回傳。
     """
     if not isinstance(content, list):
         return content
@@ -442,13 +442,13 @@ def _convert_content_blocks(content):
 
 
 def _convert_messages(openai_msgs: list) -> list:
-    """将 OpenAI 格式的消息列表转换为 Anthropic 格式
+    """將 OpenAI 格式的訊息清單轉換為 Anthropic 格式
     
-    主要差异：
+    主要差異：
     - OpenAI tool result: {"role": "tool", "tool_call_id": "...", "content": "..."}
     - Anthropic tool result: {"role": "user", "content": [{"type": "tool_result", ...}]}
-    - OpenAI assistant with tool_calls: message.tool_calls 数组
-    - Anthropic assistant with tool_use: content 里包含 tool_use blocks
+    - OpenAI assistant with tool_calls: message.tool_calls 陣列
+    - Anthropic assistant with tool_use: content 裡包含 tool_use blocks
     """
     result = []
 
@@ -501,7 +501,7 @@ def _convert_messages(openai_msgs: list) -> list:
 
 
 def _sse(msg_id: str, model: str, delta: dict) -> bytes:
-    """构建 OpenAI SSE 格式的一行"""
+    """建構 OpenAI SSE 格式的一行"""
     payload = {
         "id": msg_id, "object": "chat.completion.chunk", "model": model,
         "choices": [{"index": 0, "delta": delta, "finish_reason": None}],

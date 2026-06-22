@@ -50,9 +50,9 @@ async def search_memory(query: str, limit: int = 10) -> str:
 
     參數：
     - query: 搜尋關鍵字或自然語言描述，例如"使用者的健康記錄"、"上週聊了什麼"
-    - limit: 傳回條數上限（預設10，最大50）
+    - limit: 回傳條數上限（預設10，最大50）
 
-    傳回符合的記憶列表，每條包含標題、內容、重要性、日期。
+    回傳符合的記憶列表，每條包含標題、內容、重要性、日期。
     """
     if limit > 50:
         limit = 50
@@ -68,7 +68,7 @@ async def search_memory(query: str, limit: int = 10) -> str:
         if "error" in data:
             return f"搜尋失敗：{data['error']}"
 
-        # /debug/memories 返回字段是 memories；保留对旧版 results 的兼容
+        # /debug/memories 回傳字段是 memories；保留对旧版 results 的兼容
         results = data.get("memories") or data.get("results", [])
         if not results:
             return f"沒有找到與「{query}」相關的記憶。"
@@ -105,7 +105,7 @@ async def save_memory(content: str, title: str = "", importance: int = 5) -> str
     - title: 標題（可選，4-10字概括），如"台灣搬家"
     - importance: 重要度 1-10（預設5），日常瑣事1-4，重要事件5-6，關鍵轉折7-8，核心記憶9-10
 
-    記憶保存後會自動產生向量，可以被語意搜尋找到。
+    記憶保存後會自動生成向量，可以被語意搜尋找到。
     """
     if not content.strip():
         return "內容不能為空。 "
@@ -146,7 +146,7 @@ async def get_recent(limit: int = 20) -> str:
     取得最近的記憶，按時間倒序排列。
 
     參數：
-    - limit: 返回條數（預設20，最大50）
+    - limit: 回傳條數（預設20，最大50）
 
     用於快速了解最近發生了什麼、最近聊了什麼。
     """
@@ -164,7 +164,7 @@ async def get_recent(limit: int = 20) -> str:
         if "error" in data:
             return f"獲取失敗：{data['error']}"
 
-        # /debug/memories 返回字段是 memories；保留对旧版 results 的兼容
+        # /debug/memories 回傳字段是 memories；保留对旧版 results 的兼容
         results = data.get("memories") or data.get("results", [])
         if not results:
             return "記憶庫為空。"
@@ -296,7 +296,7 @@ async def get_day_page(date: str, type: str = "day") -> str:
     - date: 日期，格式 YYYY-MM-DD，如 "2026-04-14"
     - type: 頁面類型，可選 day/week/month/quarter/year（預設 day）
 
-    返回這一天的標題、內容摘要、時段詳情和 AI 日記。
+    回傳這一天的標題、內容摘要、時段詳情和 AI 日記。
     """
     if not date.strip():
         return "請提供日期，格式 YYYY-MM-DD"
@@ -362,7 +362,7 @@ async def get_calendar_range(start: str, end: str, type: str = "") -> str:
     - end: 結束日期，格式 YYYY-MM-DD
     - type: 過濾類型（可選），day/week/month/quarter/year，留空回傳所有類型
 
-    傳回每個頁面的日期、類型、標題和關鍵字概覽。
+    回傳每個頁面的日期、類型、標題和關鍵字概覽。
     """
     if not start.strip() or not end.strip():
         return "請提供起止日期，格式 YYYY-MM-DD"
@@ -462,7 +462,7 @@ async def get_comments(target_type: str, target_id: int) -> str:
     - target_type: 目標類型，如 "day_page"、"scene"
     - target_id: 目標 ID（日曆頁面的 ID 或場景的 ID）
 
-    返回該頁面下的所有評論。
+    回傳該頁面下的所有評論。
     """
     try:
         async with httpx.AsyncClient(timeout=10, headers=GATEWAY_HEADERS) as client:
@@ -577,12 +577,12 @@ async def trigger_dream() -> str:
 
     讓 AI 去睡覺（觸發 Dream 記憶整合）。
 
-    Dream 會整理片段記憶、形成記憶場景（MemScene）、產生前瞻訊號（Foresight）。 
+    Dream 會整理片段記憶、形成記憶場景（MemScene）、生成前瞻訊號（Foresight）。 
     通常在碎片堆積較多或長時間未整理時使用。
     """
     try:
-        # /dream/start 返回 SSE 流（StreamingResponse），Dream 实际跑 1-5 分钟。
-        # 不能用 client.post() 等响应完整 —— httpx 默认会把整个流读完才返回，
+        # /dream/start 回傳 SSE 流（StreamingResponse），Dream 实际跑 1-5 分钟。
+        # 不能用 client.post() 等响应完整 —— httpx 默认会把整个流读完才回傳，
         # timeout 设多大都可能不够；而且客户端断开会触发 FastAPI 端 generator 的
         # CancelledError 把 Dream 中途杀掉。
         # 正确做法：用 client.stream() 读到第一个 data: 事件就 return，
@@ -695,7 +695,7 @@ async def get_dream_history(limit: int = 10) -> str:
     查看 Dream 執行歷史記錄。
 
     参数：
-    - limit: 傳回條數（預設10）
+    - limit: 回傳條數（預設10）
 
     顯示每次 Dream 的時間、處理碎片數、新場景數等。
     """
@@ -815,5 +815,5 @@ def get_calendar_mcp_app():
 mcp = mcp_memory
 
 def get_mcp_app():
-    """向後相容：返回記憶模組"""
+    """向後相容：回傳記憶模組"""
     return get_memory_mcp_app()

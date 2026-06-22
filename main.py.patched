@@ -1937,8 +1937,17 @@ async def _stream_with_tools(messages, tools, tool_map, model, temperature, tool
 
         print(f"🔄 Tool loop round {round_num + 1}: {len(tools)} tools, {len(current_messages)} msgs (format={api_format})")
 
+        # 502/503/504 retry：上游聚合站常見短暫 5xx、retry 兩次 (1s, 2s)
+        resp = None
         async with _httpx.AsyncClient(timeout=120) as client:
-            resp = await client.post(_api_url, headers=headers, json=send_body)
+            for _attempt in range(3):
+                resp = await client.post(_api_url, headers=headers, json=send_body)
+                if resp.status_code not in (502, 503, 504):
+                    break
+                if _attempt < 2:
+                    _delay = 1 << _attempt
+                    print(f"🔁 LLM {resp.status_code}、{_delay}s 後 retry（{_attempt + 1}/2）")
+                    await asyncio.sleep(_delay)
             if resp.status_code != 200:
                 print(f"❌ LLM 请求失败: {resp.status_code}")
                 yield f"data: {json.dumps({'choices': [{'delta': {'content': f'⚠️ 模型请求失败 ({resp.status_code})'}, 'finish_reason': None}], 'model': model}, ensure_ascii=False)}\n\n"

@@ -1,15 +1,15 @@
 """
-web_search.py — 联网搜索模块
+web_search.py — 網路搜尋模組
 ==============================
 支持多搜索引擎，统一接口。
 
-API 搜索（需要 API Key）：
+API 搜尋（需要 API Key）：
   - Tavily
-  - 智谱 (Zhipu) WebSearch
+  - 智譜 (Zhipu) WebSearch
   - Bocha
   - Querit
 
-本地搜索（免费，无需 Key，解析网页结果）：
+本地搜尋（免費，無需 Key，解析網頁結果）：
   - Bing
   - Google
   - Baidu
@@ -23,7 +23,7 @@ from typing import Optional
 from urllib.parse import quote_plus
 
 # ============================================================
-# 搜索结果格式
+# 搜索結果格式
 # ============================================================
 
 class SearchResult:
@@ -37,16 +37,16 @@ class SearchResult:
 
 
 def format_results_for_prompt(results: list[SearchResult], query: str) -> str:
-    """将搜索结果格式化为注入 system prompt 的文本"""
+    """將搜尋結果格式化為注入 system prompt 的文字"""
     if not results:
         return ""
     
-    lines = [f"[联网搜索结果 · 关键词: {query}]"]
+    lines = [f"[網路搜尋結果 · 關鍵字: {query}]"]
     for i, r in enumerate(results, 1):
         lines.append(f"\n[{i}] {r.title}")
-        lines.append(f"    来源: {r.url}")
+        lines.append(f"    來源: {r.url}")
         lines.append(f"    摘要: {r.snippet}")
-    lines.append("\n请基于以上搜索结果回答用户的问题。如果搜索结果不相关，可以忽略并使用自身知识回答。")
+    lines.append("\n請基於以上搜尋結果回答用戶的問題。如果搜尋結果不相關，可以忽略並使用自身知識回答。")
     return "\n".join(lines)
 
 
@@ -57,7 +57,7 @@ def format_results_for_prompt(results: list[SearchResult], query: str) -> str:
 SEARCH_ENGINES = {
     # API 搜索
     "tavily":  {"name": "Tavily",  "type": "api", "needs_key": True},
-    "zhipu":   {"name": "智谱",    "type": "api", "needs_key": True},
+    "zhipu":   {"name": "智譜",    "type": "api", "needs_key": True},
     "bocha":   {"name": "Bocha",   "type": "api", "needs_key": True},
     "querit":  {"name": "Querit",  "type": "api", "needs_key": True},
     # 本地搜索
@@ -68,7 +68,7 @@ SEARCH_ENGINES = {
 
 
 def get_engine_list() -> list[dict]:
-    """返回所有引擎信息（前端设置页用）"""
+    """返回所有引擎資訊（前端設定頁用）"""
     return [
         {"id": k, "name": v["name"], "type": v["type"], "needs_key": v["needs_key"]}
         for k, v in SEARCH_ENGINES.items()
@@ -86,7 +86,7 @@ async def web_search(
     max_results: int = 5,
 ) -> list[SearchResult]:
     """
-    统一搜索接口
+    統一搜尋介面
     engine: tavily / zhipu / bocha / querit / bing / google / baidu
     """
     max_results = max(1, min(max_results, 20))  # 限制在 1-20 范围内
@@ -109,31 +109,31 @@ async def web_search(
             print(f"⚠️ 未知搜索引擎: {engine}")
             return []
     except httpx.TimeoutException as e:
-        print(f"⏰ 搜索超时 [{engine}]: {e}")
+        print(f"⏰ 搜尋超時 [{engine}]: {e}")
         return []
     except httpx.HTTPStatusError as e:
-        print(f"❌ 搜索 HTTP 错误 [{engine}] status={e.response.status_code}: {e}")
+        print(f"❌ 搜尋 HTTP 錯誤 [{engine}] status={e.response.status_code}: {e}")
         return []
     except httpx.RequestError as e:
-        print(f"❌ 搜索网络错误 [{engine}]: {e}")
+        print(f"❌ 搜尋網絡錯誤 [{engine}]: {e}")
         return []
     except (KeyError, AttributeError, TypeError, ValueError) as e:
-        # 通常是引擎返回 schema 变化导致的解析失败
-        print(f"❌ 搜索结果解析失败 [{engine}] (可能是 API schema 变化): {type(e).__name__}: {e}")
+        # 通常是引擎返回 schema 变化导致的解析失敗
+        print(f"❌ 搜尋結果解析失敗 [{engine}] (可能是 API schema 变化): {type(e).__name__}: {e}")
         return []
     except Exception as e:
-        print(f"❌ 搜索失败 [{engine}] {type(e).__name__}: {e}")
+        print(f"❌ 搜尋失敗 [{engine}] {type(e).__name__}: {e}")
         return []
 
 
 # ============================================================
-# API 搜索引擎实现
+# API 搜尋引擎實現
 # ============================================================
 
 async def _search_tavily(query: str, api_key: str, max_results: int) -> list[SearchResult]:
     """Tavily Search API — https://api.tavily.com"""
     if not api_key:
-        print("⚠️ Tavily API Key 未设置")
+        print("⚠️ Tavily API Key 未設定")
         return []
     
     async with httpx.AsyncClient(timeout=15) as client:
@@ -158,9 +158,9 @@ async def _search_tavily(query: str, api_key: str, max_results: int) -> list[Sea
 
 
 async def _search_zhipu(query: str, api_key: str, max_results: int) -> list[SearchResult]:
-    """智谱 WebSearch API — https://open.bigmodel.cn/api/paas/v4/web_search"""
+    """智譜 WebSearch API — https://open.bigmodel.cn/api/paas/v4/web_search"""
     if not api_key:
-        print("⚠️ 智谱 API Key 未设置")
+        print("⚠️ 智譜 API Key 未設定")
         return []
     
     async with httpx.AsyncClient(timeout=15) as client:
@@ -189,7 +189,7 @@ async def _search_zhipu(query: str, api_key: str, max_results: int) -> list[Sear
 async def _search_bocha(query: str, api_key: str, max_results: int) -> list[SearchResult]:
     """Bocha Search API — https://api.bochaai.com"""
     if not api_key:
-        print("⚠️ Bocha API Key 未设置")
+        print("⚠️ Bocha API Key 未設定")
         return []
     
     async with httpx.AsyncClient(timeout=15) as client:
@@ -220,7 +220,7 @@ async def _search_bocha(query: str, api_key: str, max_results: int) -> list[Sear
                 snippet=(item.get("snippet", "") or "")[:300],
             ))
         except Exception as e:
-            print(f"   ⚠️ Bocha 单条结果解析失败，跳过: {e}")
+            print(f"   ⚠️ Bocha 單一結果解析失敗，跳過: {e}")
             continue
     return results
 
@@ -228,7 +228,7 @@ async def _search_bocha(query: str, api_key: str, max_results: int) -> list[Sear
 async def _search_querit(query: str, api_key: str, max_results: int) -> list[SearchResult]:
     """Querit Search API — https://api.querit.ai"""
     if not api_key:
-        print("⚠️ Querit API Key 未设置")
+        print("⚠️ Querit API Key 未設定")
         return []
     
     async with httpx.AsyncClient(timeout=15) as client:
@@ -264,7 +264,7 @@ _HEADERS = {
 }
 
 def _clean_html(text: str) -> str:
-    """清理 HTML 标签和实体"""
+    """清理 HTML 標籤和實體"""
     text = re.sub(r'<[^>]+>', '', text)
     text = unescape(text)
     text = re.sub(r'\s+', ' ', text).strip()
@@ -272,7 +272,7 @@ def _clean_html(text: str) -> str:
 
 
 async def _search_bing_local(query: str, max_results: int) -> list[SearchResult]:
-    """Bing 本地搜索 — 解析 bing.com 搜索结果页"""
+    """Bing 本機搜尋 — 解析 bing.com 搜尋結果頁"""
     url = f"https://www.bing.com/search?q={quote_plus(query)}&count={max_results + 5}"
     
     async with httpx.AsyncClient(timeout=15, follow_redirects=True) as client:
@@ -296,7 +296,7 @@ async def _search_bing_local(query: str, max_results: int) -> list[SearchResult]
 
 
 async def _search_google_local(query: str, max_results: int) -> list[SearchResult]:
-    """Google 本地搜索 — 解析 google.com 搜索结果页"""
+    """Google 本機搜索 — 解析 google.com 搜尋結果頁"""
     url = f"https://www.google.com/search?q={quote_plus(query)}&num={max_results + 5}&hl=zh-CN"
     
     async with httpx.AsyncClient(timeout=15, follow_redirects=True) as client:
@@ -334,7 +334,7 @@ async def _search_google_local(query: str, max_results: int) -> list[SearchResul
 
 
 async def _search_baidu_local(query: str, max_results: int) -> list[SearchResult]:
-    """Baidu 本地搜索 — 解析 baidu.com 搜索结果页"""
+    """Baidu 本地搜索 — 解析 baidu.com 搜索結果页"""
     url = f"https://www.baidu.com/s?wd={quote_plus(query)}&rn={max_results + 5}"
     
     async with httpx.AsyncClient(timeout=15, follow_redirects=True) as client:

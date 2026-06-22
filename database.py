@@ -1,19 +1,19 @@
 """
-数据库模块 —— 负责所有跟 PostgreSQL 打交道的事情
+資料庫模組 —— 負責所有跟 PostgreSQL 打交道的事情
 ==============================================
 包括：
-- 创建表结构
-- 存储对话记录
-- 存储/检索记忆（RRF 混合检索：向量 + 关键词并行 → 融合排序）
-- 删除/清空/更新记忆
-- 记忆去重检测
-- Embedding 向量生成与存储
+- 建立表格結構
+- 儲存對話記錄
+- 儲存/檢索記憶（RRF 混合檢索：向量 + 關鍵字平行 → 融合排序）
+- 刪除/清空/更新記憶
+- 記憶去重檢測
+- Embedding 向量產生與存儲
 
-v5.7 升级：RRF 混合检索
-- 向量搜索和关键词搜索并行执行（asyncio.gather）
-- Reciprocal Rank Fusion 合并两路结果
-- 关键词搜索增加标题匹配（标题命中权重 1.5x）
-- 召回追踪统一在合并后执行（不重复追踪）
+v5.7 升級：RRF 混合檢索
+- 向量搜尋和關鍵字搜尋並行執行（asyncio.gather）
+- Reciprocal Rank Fusion 合併兩路結果
+- 關鍵字搜尋增加標題匹配（標題命中權重 1.5x）
+- 召回追蹤統一在合併後執行（不重複追蹤）
 """
 
 import os
@@ -54,7 +54,7 @@ API_BASE_URL = os.getenv("API_BASE_URL", "https://openrouter.ai/api/v1/chat/comp
 
 
 def _get_embedding_url() -> str:
-    """从 API_BASE_URL 推导 embedding endpoint"""
+    """从 API_BASE_URL 推導 embedding endpoint"""
     base = API_BASE_URL.split("/chat/completions")[0].rstrip("/")
     return f"{base}/embeddings"
 
@@ -70,9 +70,9 @@ async def get_pool() -> asyncpg.Pool:
     global _pool
     if _pool is None:
         if not DATABASE_URL:
-            raise RuntimeError("DATABASE_URL 未设置！")
+            raise RuntimeError("DATABASE_URL 未設定！")
         _pool = await asyncpg.create_pool(DATABASE_URL, min_size=1, max_size=5)
-        print("✅ 数据库连接池已创建")
+        print("✅ 資料庫連線池已建立")
     return _pool
 
 
@@ -81,7 +81,7 @@ async def close_pool():
     if _pool:
         await _pool.close()
         _pool = None
-        print("✅ 数据库连接池已关闭")
+        print("✅ 資料庫連線池已關閉")
 
 
 # ============================================================
@@ -113,7 +113,7 @@ async def init_tables():
             );
         """)
         
-        # v3.0：添加 embedding 列（如果不存在）
+        # v3.0：新增 embedding 列（如果不存在）
         has_embedding = await conn.fetchval("""
             SELECT EXISTS (
                 SELECT 1 FROM information_schema.columns 
@@ -122,9 +122,9 @@ async def init_tables():
         """)
         if not has_embedding:
             await conn.execute("ALTER TABLE memories ADD COLUMN embedding TEXT")
-            print("✅ 已添加 embedding 列")
+            print("✅ 已新增 embedding 列")
         
-        # v3.2：添加 title 列（如果不存在）
+        # v3.2：新增 title 列（如果不存在）
         has_title = await conn.fetchval("""
             SELECT EXISTS (
                 SELECT 1 FROM information_schema.columns 
@@ -133,9 +133,9 @@ async def init_tables():
         """)
         if not has_title:
             await conn.execute("ALTER TABLE memories ADD COLUMN title TEXT DEFAULT ''")
-            print("✅ 已添加 title 列")
+            print("✅ 已新增 title 列")
         
-        # v3.3：添加 memory_type 列（fragment / daily_digest / digested）
+        # v3.3：新增 memory_type 列（fragment / daily_digest / digested）
         has_memory_type = await conn.fetchval("""
             SELECT EXISTS (
                 SELECT 1 FROM information_schema.columns 
@@ -144,7 +144,7 @@ async def init_tables():
         """)
         if not has_memory_type:
             await conn.execute("ALTER TABLE memories ADD COLUMN memory_type TEXT DEFAULT 'fragment'")
-            print("✅ 已添加 memory_type 列")
+            print("✅ 已新增 memory_type 列")
         
         await conn.execute("""
             CREATE INDEX IF NOT EXISTS idx_conversations_session 
@@ -191,7 +191,7 @@ async def init_tables():
             );
         """)
 
-        # v3.7：记忆分类表
+        # v3.7：記憶分类表
         await conn.execute("""
             CREATE TABLE IF NOT EXISTS memory_categories (
                 id              SERIAL PRIMARY KEY,
@@ -203,7 +203,7 @@ async def init_tables():
             );
         """)
 
-        # v3.7：记忆表添加 category_id 列（nullable）
+        # v3.7：記憶表新增 category_id 列（nullable）
         has_category_id = await conn.fetchval("""
             SELECT EXISTS (
                 SELECT 1 FROM information_schema.columns 
@@ -212,9 +212,9 @@ async def init_tables():
         """)
         if not has_category_id:
             await conn.execute("ALTER TABLE memories ADD COLUMN category_id INTEGER REFERENCES memory_categories(id) ON DELETE SET NULL")
-            print("✅ 已添加 category_id 列")
+            print("✅ 已新增 category_id 列")
 
-        # v3.9：记忆来源追踪列
+        # v3.9：記憶来源追踪列
         has_source = await conn.fetchval("""
             SELECT EXISTS (
                 SELECT 1 FROM information_schema.columns 
@@ -223,17 +223,17 @@ async def init_tables():
         """)
         if not has_source:
             await conn.execute("ALTER TABLE memories ADD COLUMN source TEXT DEFAULT 'ai_extracted'")
-            # 回填已有记忆的来源
+            # 回填已有記憶的来源
             await conn.execute("UPDATE memories SET source = 'ai_digest' WHERE memory_type = 'daily_digest'")
             await conn.execute("UPDATE memories SET source = 'user_explicit' WHERE source_session = 'manual'")
             await conn.execute("UPDATE memories SET source = 'seed_import' WHERE source_session = 'seed-import'")
-            print("✅ 已添加 source 列（并回填已有记忆）")
+            print("✅ 已新增 source 列（並回填已有記憶）")
 
         # v4.1：云端同步 — 对话表
         await conn.execute("""
             CREATE TABLE IF NOT EXISTS chat_conversations (
                 id              TEXT PRIMARY KEY,
-                title           TEXT DEFAULT '新对话',
+                title           TEXT DEFAULT '新對話',
                 model           TEXT DEFAULT '',
                 project_id      TEXT,
                 pinned          BOOLEAN DEFAULT FALSE,
@@ -276,11 +276,11 @@ async def init_tables():
             ON chat_messages (conversation_id, sort_order);
         """)
 
-        # v4.1：云端同步 — 项目表
+        # v4.1：云端同步 — 專案表
         await conn.execute("""
             CREATE TABLE IF NOT EXISTS chat_projects (
                 id              TEXT PRIMARY KEY,
-                name            TEXT DEFAULT '新项目',
+                name            TEXT DEFAULT '新專案',
                 icon            TEXT DEFAULT '📁',
                 description     TEXT DEFAULT '',
                 instructions    TEXT DEFAULT '',
@@ -310,7 +310,7 @@ async def init_tables():
             );
         """)
 
-        # v5.0：日历记忆页面（记忆桥核心表）
+        # v5.0：日历記憶页面（記憶桥核心表）
         await conn.execute("""
             CREATE TABLE IF NOT EXISTS calendar_pages (
                 id              SERIAL PRIMARY KEY,
@@ -326,7 +326,7 @@ async def init_tables():
             );
         """)
 
-        # v5.0：通用评论表（记忆桥所有内容通用）
+        # v5.0：通用评论表（記憶桥所有內容通用）
         await conn.execute("""
             CREATE TABLE IF NOT EXISTS comments (
                 id              SERIAL PRIMARY KEY,
@@ -343,7 +343,7 @@ async def init_tables():
             ON comments (target_type, target_id);
         """)
 
-        # v5.1：Dream 记忆场景表
+        # v5.1：Dream 記憶场景表
         await conn.execute("""
             CREATE TABLE IF NOT EXISTS mem_scenes (
                 id              SERIAL PRIMARY KEY,
@@ -369,7 +369,7 @@ async def init_tables():
         """)
         if not has_scene_embedding:
             await conn.execute("ALTER TABLE mem_scenes ADD COLUMN embedding JSONB DEFAULT NULL")
-            print("✅ mem_scenes 已添加 embedding 列")
+            print("✅ mem_scenes 已新增 embedding 列")
 
         # v5.1：Dream 执行记录表
         await conn.execute("""
@@ -405,7 +405,7 @@ async def init_tables():
             """, col_name)
             if not has_col:
                 await conn.execute(f"ALTER TABLE dream_logs ADD COLUMN {col_name} {col_def}")
-                print(f"✅ dream_logs 表已添加 {col_name} 列")
+                print(f"✅ dream_logs 表已新增 {col_name} 列")
 
         # v5.1：memories 表扩展 — Dream 相关字段
         for col_name, col_def in [
@@ -422,9 +422,9 @@ async def init_tables():
             """, col_name)
             if not has_col:
                 await conn.execute(f"ALTER TABLE memories ADD COLUMN {col_name} {col_def}")
-                print(f"✅ memories 表已添加 {col_name} 列")
+                print(f"✅ memories 表已新增 {col_name} 列")
 
-        # v5.2：记忆热度系统 — 召回追踪 + 情绪标记
+        # v5.2：記憶活躍度系统 — 召回追踪 + 情绪标记
         for col_name, col_def in [
             ("emotional_weight", "INTEGER DEFAULT 0"),
             ("access_count", "INTEGER DEFAULT 0"),
@@ -438,7 +438,7 @@ async def init_tables():
             """, col_name)
             if not has_col:
                 await conn.execute(f"ALTER TABLE memories ADD COLUMN {col_name} {col_def}")
-                print(f"✅ memories 表已添加 {col_name} 列（热度系统）")
+                print(f"✅ memories 表已新增 {col_name} 列（活躍度系統）")
 
         # v5.2：chat_messages 表扩展 — 情绪标记
         has_emotion = await conn.fetchval("""
@@ -449,9 +449,9 @@ async def init_tables():
         """)
         if not has_emotion:
             await conn.execute("ALTER TABLE chat_messages ADD COLUMN emotion_flag TEXT DEFAULT 'normal'")
-            print("✅ chat_messages 表已添加 emotion_flag 列")
+            print("✅ chat_messages 表已新增 emotion_flag 列")
 
-        # v5.2.1：chat_messages 表扩展 — 记忆事件持久化
+        # v5.2.1：chat_messages 表扩展 — 記憶事件持久化
         has_memory_event = await conn.fetchval("""
             SELECT EXISTS (
                 SELECT 1 FROM information_schema.columns
@@ -460,7 +460,7 @@ async def init_tables():
         """)
         if not has_memory_event:
             await conn.execute("ALTER TABLE chat_messages ADD COLUMN memory_event JSONB")
-            print("✅ chat_messages 表已添加 memory_event 列")
+            print("✅ chat_messages 表已新增 memory_event 列")
 
         # v6.1：chat_messages 表扩展 — 完整前端消息状态同步
         for col_name, col_def in [
@@ -476,7 +476,7 @@ async def init_tables():
             """, col_name)
             if not has_col:
                 await conn.execute(f"ALTER TABLE chat_messages ADD COLUMN {col_name} {col_def}")
-                print(f"✅ chat_messages 表已添加 {col_name} 列（完整消息同步）")
+                print(f"✅ chat_messages 表已新增 {col_name} 列（完整消息同步）")
 
         # v5.3：时间有效期窗口（MemPalace 启发）
         for col_name, col_def in [
@@ -492,9 +492,9 @@ async def init_tables():
             """, col_name)
             if not has_col:
                 await conn.execute(f"ALTER TABLE memories ADD COLUMN {col_name} {col_def}")
-                print(f"✅ memories 表已添加 {col_name} 列（时间有效期）")
+                print(f"✅ memories 表已新增 {col_name} 列（時間有效期限）")
 
-        # v5.4：日历页面添加 summary 字段（内容概要层级）
+        # v5.4：日历页面新增 summary 字段（內容概要层级）
         has_summary = await conn.fetchval("""
             SELECT EXISTS (
                 SELECT 1 FROM information_schema.columns
@@ -503,9 +503,9 @@ async def init_tables():
         """)
         if not has_summary:
             await conn.execute("ALTER TABLE calendar_pages ADD COLUMN summary TEXT DEFAULT ''")
-            print("✅ calendar_pages 表已添加 summary 列（内容概要）")
+            print("✅ calendar_pages 表已新增 summary 列（內容概要）")
 
-        # v5.5：日历页面添加 digest 字段（模型注入用的中间层概要）
+        # v5.5：日历页面新增 digest 字段（模型注入用的中间层概要）
         has_digest = await conn.fetchval("""
             SELECT EXISTS (
                 SELECT 1 FROM information_schema.columns
@@ -514,9 +514,9 @@ async def init_tables():
         """)
         if not has_digest:
             await conn.execute("ALTER TABLE calendar_pages ADD COLUMN digest TEXT DEFAULT ''")
-            print("✅ calendar_pages 表已添加 digest 列（模型注入概要）")
+            print("✅ calendar_pages 表已新增 digest 列（模型注入概要）")
 
-        # v6.0：日历页面添加 title 字段（用户可编辑的标题）
+        # v6.0：日历页面新增 title 字段（用户可编辑的标题）
         has_cal_title = await conn.fetchval("""
             SELECT EXISTS (
                 SELECT 1 FROM information_schema.columns
@@ -525,9 +525,9 @@ async def init_tables():
         """)
         if not has_cal_title:
             await conn.execute("ALTER TABLE calendar_pages ADD COLUMN title TEXT DEFAULT ''")
-            print("✅ calendar_pages 表已添加 title 列（页面标题）")
+            print("✅ calendar_pages 表已新增 title 列（頁面標題）")
 
-        # v5.2：记忆关系标注表（typed edge）
+        # v5.2：記憶关系标注表（typed edge）
         await conn.execute("""
             CREATE TABLE IF NOT EXISTS memory_edges (
                 id          SERIAL PRIMARY KEY,
@@ -542,7 +542,7 @@ async def init_tables():
             );
         """)
 
-        # v5.8：记忆表添加 project_id 列（项目级记忆）
+        # v5.8：記憶表新增 project_id 列（專案级記憶）
         has_mem_project_id = await conn.fetchval("""
             SELECT EXISTS (
                 SELECT 1 FROM information_schema.columns 
@@ -552,9 +552,9 @@ async def init_tables():
         if not has_mem_project_id:
             await conn.execute("ALTER TABLE memories ADD COLUMN project_id TEXT")
             await conn.execute("CREATE INDEX IF NOT EXISTS idx_memories_project ON memories (project_id) WHERE project_id IS NOT NULL")
-            print("✅ memories 表已添加 project_id 列")
+            print("✅ memories 表已新增 project_id 列")
 
-        # v5.8：项目文件块表（分块 + 向量搜索）
+        # v5.8：專案文件块表（分块 + 向量搜索）
         await conn.execute("""
             CREATE TABLE IF NOT EXISTS project_file_chunks (
                 id              SERIAL PRIMARY KEY,
@@ -570,7 +570,7 @@ async def init_tables():
         await conn.execute("CREATE INDEX IF NOT EXISTS idx_pfc_project ON project_file_chunks (project_id)")
         await conn.execute("CREATE INDEX IF NOT EXISTS idx_pfc_file ON project_file_chunks (project_id, file_id)")
 
-        # v5.9：记忆软化系统 — resolution 字段
+        # v5.9：記憶柔化系统 — resolution 字段
         has_resolution = await conn.fetchval("""
             SELECT EXISTS (
                 SELECT 1 FROM information_schema.columns
@@ -579,9 +579,9 @@ async def init_tables():
         """)
         if not has_resolution:
             await conn.execute("ALTER TABLE memories ADD COLUMN resolution FLOAT DEFAULT 1.0")
-            print("✅ memories 表已添加 resolution 列（记忆软化系统）")
+            print("✅ memories 表已新增 resolution 列（記憶柔化系統）")
 
-        # v6.2：providers 表添加 api_format 列（openai / anthropic）
+        # v6.2：providers 表新增 api_format 列（openai / anthropic）
         has_api_format = await conn.fetchval("""
             SELECT EXISTS (
                 SELECT 1 FROM information_schema.columns
@@ -590,9 +590,9 @@ async def init_tables():
         """)
         if not has_api_format:
             await conn.execute("ALTER TABLE providers ADD COLUMN api_format TEXT DEFAULT 'openai'")
-            print("✅ providers 表已添加 api_format 列（Anthropic 格式支持）")
+            print("✅ providers 表已新增 api_format 列（Anthropic 格式支持）")
 
-        # v6.2b：provider_models 表添加 api_format 列（模型级别覆盖供应商默认值）
+        # v6.2b：provider_models 表新增 api_format 列（模型级别覆盖供应商默认值）
         has_model_api_format = await conn.fetchval("""
             SELECT EXISTS (
                 SELECT 1 FROM information_schema.columns
@@ -601,9 +601,9 @@ async def init_tables():
         """)
         if not has_model_api_format:
             await conn.execute("ALTER TABLE provider_models ADD COLUMN api_format TEXT DEFAULT NULL")
-            print("✅ provider_models 表已添加 api_format 列（模型级覆盖）")
+            print("✅ provider_models 表已新增 api_format 列（模型級覆蓋）")
 
-    print("✅ 数据库表结构已就绪（v6.2b 模型级 API 格式支持）")
+    print("✅ 資料庫表結構已就緒（v6.2b 模型級 API 格式支持）")
 
 
 # ============================================================
@@ -612,13 +612,13 @@ async def init_tables():
 
 async def get_embedding(text: str) -> Optional[List[float]]:
     """
-    调用 OpenRouter Embedding API 生成向量
+    呼叫 OpenRouter Embedding API 產生向量
     
-    使用与聊天相同的 API_KEY，接口完全兼容 OpenAI 格式
-    失败时返回 None（触发降级搜索）
+    使用與聊天相同的 API_KEY，介面完全相容於 OpenAI 格式
+    失敗時回傳 None（觸發降級搜尋）
     """
     if not API_KEY:
-        print("⚠️  API_KEY 未设置，无法生成 embedding")
+        print("⚠️  API_KEY 未設置，無法生成 embedding")
         return None
     
     url = _get_embedding_url()
@@ -642,18 +642,18 @@ async def get_embedding(text: str) -> Optional[List[float]]:
                 embedding = data["data"][0]["embedding"]
                 return embedding
             else:
-                print(f"⚠️  Embedding API 返回 {resp.status_code}: {resp.text[:200]}")
+                print(f"⚠️  Embedding API 回傳 {resp.status_code}: {resp.text[:200]}")
                 return None
                 
     except Exception as e:
-        print(f"⚠️  Embedding 生成失败: {e}")
+        print(f"⚠️  Embedding 生成失敗: {e}")
         return None
 
 
 async def get_embeddings_batch(texts: List[str]) -> List[Optional[List[float]]]:
     """
-    批量生成 embedding（OpenRouter 支持批量输入）
-    返回与 texts 等长的列表，失败的位置为 None
+    批次產生 embedding（OpenRouter 支援批次輸入）
+    回傳與 texts 等長的列表，失敗的位置為 None
     """
     if not API_KEY or not texts:
         return [None] * len(texts)
@@ -676,18 +676,18 @@ async def get_embeddings_batch(texts: List[str]) -> List[Optional[List[float]]]:
             
             if resp.status_code == 200:
                 data = resp.json()
-                # API 返回的 data 列表按 index 排序
+                # API 回傳的 data 列表按 index 排序
                 results = [None] * len(texts)
                 for item in data["data"]:
                     idx = item["index"]
                     results[idx] = item["embedding"]
                 return results
             else:
-                print(f"⚠️  批量 Embedding API 返回 {resp.status_code}: {resp.text[:200]}")
+                print(f"⚠️  批量 Embedding API 回傳 {resp.status_code}: {resp.text[:200]}")
                 return [None] * len(texts)
                 
     except Exception as e:
-        print(f"⚠️  批量 Embedding 生成失败: {e}")
+        print(f"⚠️  批量 Embedding 生成失敗: {e}")
         return [None] * len(texts)
 
 
@@ -696,7 +696,7 @@ async def get_embeddings_batch(texts: List[str]) -> List[Optional[List[float]]]:
 # ============================================================
 
 def cosine_similarity(a: List[float], b: List[float]) -> float:
-    """计算两个向量的余弦相似度"""
+    """計算兩個向量的餘弦相似度"""
     dot = sum(x * y for x, y in zip(a, b))
     norm_a = math.sqrt(sum(x * x for x in a))
     norm_b = math.sqrt(sum(x * x for x in b))
@@ -706,10 +706,10 @@ def cosine_similarity(a: List[float], b: List[float]) -> float:
 
 
 # ============================================================
-# 记忆热度系统（遗忘曲线 + 召回追踪 + 情绪标记）
+# 記憶活躍度系统（遗忘曲线 + 召回追踪 + 情绪标记）
 # ============================================================
 
-# 热度参数默认值（config 表未配置时使用）
+# 活躍度参数默认值（config 表未配置时使用）
 _HEAT_DEFAULTS = {
     "half_life_normal": 3.0,
     "half_life_important": 7.0,
@@ -723,8 +723,8 @@ _HEAT_DEFAULTS = {
 
 async def get_heat_params() -> dict:
     """
-    从 config 表加载热度参数（v5.4）
-    异步调用，调用方加载一次后传给同步的 calculate_heat()
+    從 config 表載入活躍度參數（v5.4）
+    非同步調用，調用方載入一次後傳給同步的 calculate_heat()
     """
     try:
         from config import get_config_float, get_config_int
@@ -743,19 +743,19 @@ async def get_heat_params() -> dict:
 
 def calculate_heat(row, params: dict = None) -> float:
     """
-    计算一条记忆的当前热度（0.0 ~ 1.0）
+    計算一條記憶的當前活躍度（0.0 ~ 1.0）
     
-    热度 = 初始温度 × 时间衰减 + 召回加成
+    活躍度 = 初始溫度 × 時間衰減 + 召回加成
     
-    - 锁定记忆（is_permanent）热度永远 1.0
-    - 初始温度由 importance + emotional_weight 决定
-    - 时间衰减用半衰期模型，半衰期随 access_count 延长（艾宾浩斯）
-    - 召回加成由 access_count + query_diversity 决定
+    - 鎖定記憶（is_permanent）活躍度永遠 1.0
+    - 初始溫度由 importance + emotional_weight 決定
+    - 時間衰減用半衰期模型，半衰期隨 access_count 延長（艾賓浩斯）
+    - 召回加成由 access_count + query_diversity 決定
     
-    params: 从 get_heat_params() 加载的可配置参数，None 时用默认值
+    params: 從 get_heat_params() 載入的可設定參數，None 時用預設值
     """
     p = params or _HEAT_DEFAULTS
-    # 已失效记忆热度直接归零（v5.4：与 SQL 的 valid_until > NOW() 保持一致）
+    # 已失效記憶活躍度直接归零（v5.4：与 SQL 的 valid_until > NOW() 保持一致）
     valid_until = row.get("valid_until")
     if valid_until is not None:
         try:
@@ -765,7 +765,7 @@ def calculate_heat(row, params: dict = None) -> float:
         except Exception:
             return 0.0
     
-    # 锁定记忆不衰减
+    # 锁定記憶不衰减
     if row.get("is_permanent"):
         return 1.0
     
@@ -775,8 +775,8 @@ def calculate_heat(row, params: dict = None) -> float:
     created_at = row.get("created_at")
     
     # --- 冷启动保护 ---
-    # 如果一条记忆从未被搜到过（热度系统还没有数据），
-    # 不走遗忘曲线，给一个基于 importance 的稳定热度。
+    # 如果一条記憶从未被搜到过（活躍度系统还没有数据），
+    # 不走遗忘曲线，给一个基于 importance 的稳定活躍度。
     # 等第一次被搜到后（access_count > 0），遗忘曲线才开始生效。
     # emotional_weight <= 2 视为低情绪，也走冷启动保护
     if access_count == 0 and emotional_weight <= 2:
@@ -801,7 +801,7 @@ def calculate_heat(row, params: dict = None) -> float:
     
     # --- 时间衰减 ---
     # v5.10：基准时间取"创建时间"和"上次被想起"中更近的那个
-    # 这样冷记忆一旦被用户对话重新命中，时钟就从这一刻重新开始，热度瞬间回升
+    # 这样冷記憶一旦被用户对话重新命中，时钟就从这一刻重新开始，活躍度瞬间回升
     # （就像很久没想起的事，突然有人提起，一下子就鲜活了）
     last_accessed = row.get("last_accessed")
     anchor = created_at  # 默认用创建时间
@@ -829,7 +829,7 @@ def calculate_heat(row, params: dict = None) -> float:
         decay = 0.5
     
     # --- 召回加成 ---
-    # query_diversity 给额外加分（跨话题都有用的记忆更热）
+    # query_diversity 给额外加分（跨话题都有用的記憶更热）
     query_hashes = row.get("access_query_hashes") or []
     if isinstance(query_hashes, str):
         try:
@@ -839,7 +839,7 @@ def calculate_heat(row, params: dict = None) -> float:
     query_diversity = len(set(query_hashes))
     recall_bonus = min(0.2, access_count * 0.02 + query_diversity * 0.03)
     
-    # --- 最终热度 ---
+    # --- 最终活躍度 ---
     heat = initial_temp * decay + recall_bonus
     return max(0.0, min(1.0, heat))
 
@@ -885,7 +885,7 @@ async def get_recent_messages(session_id: str, limit: int = 20):
 
 
 async def get_recent_conversation(limit: int = 20):
-    """获取最近 N 条对话记录（不限 session，按时间倒序取再正序返回）"""
+    """取得最近 N 筆對話記錄（不限 session，按時間倒序取再正序回傳）"""
     pool = await get_pool()
     async with pool.acquire() as conn:
         rows = await conn.fetch(
@@ -897,11 +897,11 @@ async def get_recent_conversation(limit: int = 20):
 
 async def get_handoff_messages(limit: int = 6, exclude_conversation_id: str = None):
     """
-    获取最近一个有足够消息的对话的最后 N 条消息，用于无缝切窗。
-    只取 user 和 assistant 角色的消息，按时间正序返回。
+    取得最近一個有足夠訊息的對話的最後 N 則訊息，用於無縫切窗。
+    只取 user 和 assistant 角色的訊息，按時間正序回傳。
 
-    exclude_conversation_id: 当前正在进行的对话 ID。如果传入，会跳过它，
-    避免在同一个对话里继续聊时把自己的最后几条又当成"上一个对话"注入。
+    exclude_conversation_id: 目前正在進行的對話 ID。如果傳入，會跳過它，
+    避免在同一個對話裡繼續聊時把自己的最後幾條又當成"上一個對話"注入。
     """
     pool = await get_pool()
     async with pool.acquire() as conn:
@@ -931,24 +931,24 @@ async def get_handoff_messages(limit: int = 6, exclude_conversation_id: str = No
 
 
 # ============================================================
-# 记忆操作
+# 記憶操作
 # ============================================================
 
 async def save_memory(content: str, importance: int = 5, source_session: str = "", title: str = "", category_id: int = None, source: str = "ai_extracted", emotional_weight: int = 0, project_id: str = None) -> int:
     """
-    存储新记忆，自动生成 embedding 向量
-    如果 embedding 生成失败，记忆仍会存储（只是没有向量，降级为关键词搜索）
+    儲存新記憶，自動產生 embedding 向量
+    如果 embedding 生成失敗，記憶仍會儲存（只是沒有向量，降級為關鍵字搜尋）
     
     source 取值：
-    - 'user_explicit': 用户手动添加 / 明确陈述
-    - 'ai_extracted': AI 从对话中自动提取
-    - 'ai_digest': 每日整理合并生成
-    - 'seed_import': 种子记忆导入
+    - 'user_explicit': 使用者手動新增 / 明確陳述
+    - 'ai_extracted': AI 從對話中自動提取
+    - 'ai_digest': 每日整理合併生成
+    - 'seed_import': 種子記憶導入
     
-    emotional_weight: 情绪浓度 0-10，0=普通，越高越浓
-    project_id: 项目ID，非空时为项目级记忆，空为全局记忆
+    emotional_weight: 情緒濃度 0-10，0=普通，越高越濃
+    project_id: 專案ID，非空時為專案級記憶，空為全域記憶
     
-    返回：新记忆的 ID（v5.3）
+    回傳：新記憶的 ID（v5.3）
     """
     # 生成 embedding（title + content 合并生成，提升语义搜索精度）
     embed_text = f"{title} {content}" if title else content
@@ -966,15 +966,15 @@ async def save_memory(content: str, importance: int = 5, source_session: str = "
     emo_tag = f" 🩷emo={emotional_weight}" if emotional_weight > 0 else ""
     proj_tag = f" 📂proj={project_id}" if project_id else ""
     if embedding:
-        print(f"💎 记忆已存储 #{new_id}（含向量，{len(embedding)}维{emo_tag}{proj_tag}）: {title_tag}{content[:50]}...")
+        print(f"💎 記憶已儲存 #{new_id}（含向量，{len(embedding)}维{emo_tag}{proj_tag}）: {title_tag}{content[:50]}...")
     else:
-        print(f"📝 记忆已存储 #{new_id}（无向量{emo_tag}{proj_tag}）: {title_tag}{content[:50]}...")
+        print(f"📝 記憶已儲存 #{new_id}（無向量{emo_tag}{proj_tag}）: {title_tag}{content[:50]}...")
     
     return new_id
 
 
 async def delete_memory(memory_id: int) -> bool:
-    """删除单条记忆，返回是否成功"""
+    """刪除單條記憶，回傳是否成功"""
     pool = await get_pool()
     async with pool.acquire() as conn:
         result = await conn.execute(
@@ -984,7 +984,7 @@ async def delete_memory(memory_id: int) -> bool:
 
 
 async def clear_all_memories() -> int:
-    """清空所有记忆，返回删除的条数"""
+    """清空所有記憶，回傳刪除的條數"""
     pool = await get_pool()
     async with pool.acquire() as conn:
         count = await conn.fetchrow("SELECT COUNT(*) as cnt FROM memories")
@@ -993,7 +993,7 @@ async def clear_all_memories() -> int:
 
 
 async def update_memory(memory_id: int, content: str = None, importance: int = None, title: str = None, category_id: object = "UNSET") -> bool:
-    """更新单条记忆的内容、标题、重要程度或分类（内容/标题变化时重新生成 embedding）"""
+    """更新单条記憶的內容、标题、重要程度或分类（內容/标题变化时重新生成 embedding）"""
     pool = await get_pool()
     async with pool.acquire() as conn:
         # 先获取当前记录（用于合并 embedding 生成）
@@ -1006,7 +1006,7 @@ async def update_memory(memory_id: int, content: str = None, importance: int = N
         new_content = content if content is not None else current["content"]
         new_title = title if title is not None else (current["title"] or "")
         
-        # 内容或标题变了，重新生成 embedding
+        # 內容或标题变了，重新生成 embedding
         need_re_embed = (content is not None) or (title is not None)
         
         sets = []
@@ -1026,7 +1026,7 @@ async def update_memory(memory_id: int, content: str = None, importance: int = N
                 sets.append(f"content = ${idx}")
                 params.append(content)
                 idx += 1
-                # 内容变了，让 Dream 重新审视这条碎片
+                # 內容变了，让 Dream 重新审视这条碎片
                 sets.append("dream_processed_at = NULL")
             
             if title is not None:
@@ -1055,11 +1055,11 @@ async def update_memory(memory_id: int, content: str = None, importance: int = N
 
 
 # ============================================================
-# 记忆搜索（v3.0 向量语义搜索）
+# 記憶搜索（v3.0 向量语义搜索）
 # ============================================================
 
 async def track_memory_recall(memory_ids: list, query: str):
-    """对真正被使用的记忆记一笔召回。
+    """对真正被使用的記憶记一笔召回。
     包含 access_count+1、last_accessed 刷新、query_hash 合并、自动锁定检测。
     """
     ids = list(dict.fromkeys(mid for mid in memory_ids if mid is not None))
@@ -1093,8 +1093,8 @@ async def track_memory_recall(memory_ids: list, query: str):
                 WHERE id = ANY($1::int[])
             """, ids, json.dumps([query_hash]))
         except Exception as e:
-            # 降级：如果合并语句失败（如 access_query_hashes 列不存在），只更新 access_count
-            print(f"   ⚠️ 召回追踪合并 UPDATE 失败，降级为只更新 access_count: {type(e).__name__}: {e}")
+            # 降级：如果合并语句失敗（如 access_query_hashes 列不存在），只更新 access_count
+            print(f"   ⚠️ 召回追踪合并 UPDATE 失敗，降级为只更新 access_count: {type(e).__name__}: {e}")
             try:
                 await conn.execute("""
                     UPDATE memories
@@ -1108,7 +1108,7 @@ async def track_memory_recall(memory_ids: list, query: str):
                     WHERE id = ANY($1::int[])
                 """, ids)
             except Exception as e2:
-                print(f"   ❌ 召回追踪降级 UPDATE 也失败: {type(e2).__name__}: {e2}")
+                print(f"   ❌ 召回追踪降级 UPDATE 也失敗: {type(e2).__name__}: {e2}")
 
     # v5.4：自动锁定检测
     try:
@@ -1143,22 +1143,22 @@ async def touch_permanent_memories(memory_ids: list):
 
 async def search_memories(query: str, limit: int = 10, track_recall: bool = True, project_id: str = None, return_embedding: bool = False):
     """
-    搜索相关记忆 —— RRF 混合检索（v5.7）
+    搜索相关記憶 —— RRF 混合检索（v5.7）
 
     流程：
     1. 生成查询向量
     2. 并行执行向量搜索 + 关键词搜索
     3. RRF（Reciprocal Rank Fusion）合并两路结果
     4. 更新召回追踪数据（可关闭）
-    5. 返回 top-K
+    5. 回傳 top-K
 
     参数：
         track_recall: 是否记录召回追踪数据。聊天注入时=True，去重对比时=False
-        project_id: 项目ID。提供时搜索全局记忆+该项目记忆；不提供时只搜全局记忆
-        return_embedding: True 时返回 (results, query_embedding) 元组，
+        project_id: 專案ID。提供时搜索全局記憶+该專案記憶；不提供时只搜全局記憶
+        return_embedding: True 时回傳 (results, query_embedding) 元组，
                           调用方可复用 embedding 避免重复计算（如工具抽屉路由）
 
-    降级：如果 embedding 生成失败，只用关键词搜索
+    降级：如果 embedding 生成失敗，只用关键词搜索
     """
     # 候选池扩大到 3 倍，给 RRF 合并留充足的候选
     expanded_limit = limit * 3
@@ -1172,7 +1172,7 @@ async def search_memories(query: str, limit: int = 10, track_recall: bool = True
     heat_params["_semantic_threshold"] = semantic_threshold
     
     if query_embedding is None:
-        # embedding 失败，只用关键词搜索
+        # embedding 失敗，只用关键词搜索
         print("⚠️  向量搜索不可用 → 仅关键词搜索")
         results = await _keyword_search(query, limit, heat_params, project_id=project_id)
     else:
@@ -1203,7 +1203,7 @@ async def search_memories(query: str, limit: int = 10, track_recall: bool = True
         src_tag = r.get("_source", "?")
         print(f"   📌 [score={r['score']:.3f}, sim={r.get('similarity', 0):.3f}, heat={r.get('heat', 0):.2f}, src={src_tag}] {r['content'][:60]}...")
     
-    # 清理内部标记
+    # 清理內部标记
     for r in results:
         r.pop("_source", None)
     
@@ -1211,7 +1211,7 @@ async def search_memories(query: str, limit: int = 10, track_recall: bool = True
     if results and track_recall:
         await track_memory_recall([r["id"] for r in results], query)
 
-    # v6.0：可选返回 query_embedding（供工具抽屉路由复用）
+    # v6.0：可选回傳 query_embedding（供工具抽屉路由复用）
     if return_embedding:
         return results, query_embedding
 
@@ -1220,13 +1220,13 @@ async def search_memories(query: str, limit: int = 10, track_recall: bool = True
 
 async def _vector_search(query_embedding: list, limit: int, heat_params: dict, project_id: str = None) -> list:
     """
-    纯向量语义搜索 —— 不做召回追踪，仅返回评分结果。
-    project_id: 提供时搜全局(NULL)+该项目；不提供时只搜全局(NULL)
+    纯向量语义搜索 —— 不做召回追踪，仅回傳评分结果。
+    project_id: 提供时搜全局(NULL)+该專案；不提供时只搜全局(NULL)
     """
     semantic_threshold = heat_params.get("_semantic_threshold", 0.25)
     pool = await get_pool()
     async with pool.acquire() as conn:
-        # 构建项目过滤条件
+        # 构建專案过滤条件
         if project_id:
             project_filter = "AND (m.project_id IS NULL OR m.project_id = $1)"
             rows = await conn.fetch(
@@ -1323,7 +1323,7 @@ async def _vector_search(query_embedding: list, limit: int, heat_params: dict, p
     scored.sort(key=lambda x: x["score"], reverse=True)
     
     if no_embedding_count:
-        print(f"   ⚠️  {no_embedding_count} 条记忆缺少向量")
+        print(f"   ⚠️  {no_embedding_count} 条記憶缺少向量")
     
     return scored[:limit]
 
@@ -1335,7 +1335,7 @@ def _rrf_merge(vec_results: list, kw_results: list, k: int = 60, final_limit: in
     RRF 公式：rrf_score(d) = Σ 1 / (k + rank_i)
     k=60 是业界标准值，让排名靠后的结果权重衰减温和。
     
-    两路搜到同一条记忆 → 分数叠加（双命中加权更高）
+    两路搜到同一条記憶 → 分数叠加（双命中加权更高）
     只有一路搜到 → 也保留（单路命中仍有价值）
     """
     rrf_scores = {}   # id → rrf_score
@@ -1378,16 +1378,16 @@ def _rrf_merge(vec_results: list, kw_results: list, k: int = 60, final_limit: in
 
 
 # ============================================================
-# v5.4：记忆自动锁定（模拟高敏感人脑）
+# v5.4：記憶自动锁定（模拟高敏感人脑）
 # ============================================================
 
 async def _check_auto_lock(memory_ids: list, heat_params: dict = None):
     """
-    检查刚被召回的记忆是否达到自动锁定条件。
+    检查刚被召回的記憶是否达到自动锁定条件。
     
     高敏感人脑模型：
-    - 普通记忆：access_count >= 10 且 query_diversity >= 5（跨了很多场景都被想起 → 核心认知）
-    - 高情绪记忆：门槛降低到 access_count >= 6 且 query_diversity >= 3（情绪浓的事更容易记死）
+    - 普通記憶：access_count >= 10 且 query_diversity >= 5（跨了很多场景都被想起 → 核心认知）
+    - 高情绪記憶：门槛降低到 access_count >= 6 且 query_diversity >= 3（情绪浓的事更容易记死）
     - 已锁定/已失效的跳过
     
     阈值可通过 config 表调整。
@@ -1411,7 +1411,7 @@ async def _check_auto_lock(memory_ids: list, heat_params: dict = None):
     
     pool = await get_pool()
     async with pool.acquire() as conn:
-        # 查询刚被召回的记忆的最新状态
+        # 查询刚被召回的記憶的最新状态
         rows = await conn.fetch("""
             SELECT id, COALESCE(title, '') as title,
                    COALESCE(access_count, 0) as access_count,
@@ -1435,7 +1435,7 @@ async def _check_auto_lock(memory_ids: list, heat_params: dict = None):
             diversity = len(set(qh))
             emo = row["emotional_weight"]
             
-            # 高情绪记忆：门槛更低（情绪浓的事更容易刻进脑子）
+            # 高情绪記憶：门槛更低（情绪浓的事更容易刻进脑子）
             if emo >= emotion_line:
                 should_lock = ac >= emo_ac_threshold and diversity >= emo_div_threshold
             else:
@@ -1452,12 +1452,12 @@ async def _check_auto_lock(memory_ids: list, heat_params: dict = None):
 
 
 # ============================================================
-# v5.9：记忆软化（模拟人脑遗忘曲线中的细节模糊化）
+# v5.9：記憶柔化（模拟人脑遗忘曲线中的细节模糊化）
 # ============================================================
 
 async def soften_memory(memory_id: int, softened_content: str, target_resolution: float = 0.5, extend_days: int = 30) -> bool:
     """
-    软化一条记忆 —— 用 LLM 压缩后的内容替换原文，降低精度但延长寿命。
+    柔化一条記憶 —— 用 LLM 压缩后的內容替换原文，降低精度但延长寿命。
     """
     pool = await get_pool()
     async with pool.acquire() as conn:
@@ -1466,24 +1466,24 @@ async def soften_memory(memory_id: int, softened_content: str, target_resolution
             memory_id
         )
         if not row:
-            print(f"   ⚠️ 软化失败: #{memory_id} 不存在")
+            print(f"   ⚠️ 柔化失敗: #{memory_id} 不存在")
             return False
         if row["is_permanent"]:
-            print(f"   ⚠️ 软化跳过: #{memory_id} 已锁定（锁定记忆不软化）")
+            print(f"   ⚠️ 柔化跳过: #{memory_id} 已锁定（锁定記憶不柔化）")
             return False
         current_resolution = row.get("resolution") or 1.0
         if target_resolution >= current_resolution:
-            print(f"   ⚠️ 软化跳过: #{memory_id} 当前精度 {current_resolution} 已 ≤ 目标 {target_resolution}")
+            print(f"   ⚠️ 柔化跳过: #{memory_id} 当前精度 {current_resolution} 已 ≤ 目标 {target_resolution}")
             return False
 
         wrapper_chars = "'\"“”‘’「」『』《》〈〉`´＂"
         original_content = (row["content"] or "").strip()
         cleaned_content = (softened_content or "").strip().strip(wrapper_chars).strip()
         if not cleaned_content:
-            print(f"   ⚠️ 软化跳过: #{memory_id} 模型返回空内容或纯引号")
+            print(f"   ⚠️ 柔化跳过: #{memory_id} 模型回傳空內容或纯引号")
             return False
         if original_content and len(cleaned_content) > len(original_content):
-            print(f"   ⚠️ 软化跳过: #{memory_id} 软化后比原文更长（{len(original_content)}字 → {len(cleaned_content)}字）")
+            print(f"   ⚠️ 柔化跳过: #{memory_id} 柔化后比原文更长（{len(original_content)}字 → {len(cleaned_content)}字）")
             return False
         softened_content = cleaned_content
         title = row["title"] or ""
@@ -1491,7 +1491,7 @@ async def soften_memory(memory_id: int, softened_content: str, target_resolution
         embedding = await get_embedding(embed_text)
         embedding_json = json.dumps(embedding) if embedding else None
         if embedding is None:
-            print(f"   ⚠️ 软化 embedding 生成失败: #{memory_id} 保留旧向量")
+            print(f"   ⚠️ 柔化 embedding 生成失敗: #{memory_id} 保留旧向量")
         await conn.execute("""
             UPDATE memories
             SET content = $1,
@@ -1507,7 +1507,7 @@ async def soften_memory(memory_id: int, softened_content: str, target_resolution
         title_tag = row["title"] or f"#{memory_id}"
         old_len = len(row["content"])
         new_len = len(softened_content)
-        print(f"   🫧 记忆软化: {title_tag}（{current_resolution:.1f} → {target_resolution:.1f}, {old_len}字 → {new_len}字, +{extend_days}天）")
+        print(f"   🫧 記憶柔化: {title_tag}（{current_resolution:.1f} → {target_resolution:.1f}, {old_len}字 → {new_len}字, +{extend_days}天）")
         return True
 
 
@@ -1530,7 +1530,7 @@ SYNONYM_GROUPS = [
 
     {"公众号", "小红书", "写作", "创作"},
     {"投资", "理财", "黄金", "资产"},
-    # 可按需添加更多同义词组
+    # 可按需新增更多同义词组
 
 ]
 
@@ -1541,10 +1541,10 @@ NUM_PATTERN = re.compile(r'\d{2,}')
 # ---- jieba 初始化 ----
 # 领域专用词汇（防止被错误切分）
 _JIEBA_SYSTEM_WORDS = [
-    "记忆碎片", "日页面", "用户画像",
+    "記憶碎片", "日页面", "用户画像",
 ]
 # 用户自定义词汇：通过环境变量 JIEBA_CUSTOM_WORDS 配置，逗号分隔
-# 示例：JIEBA_CUSTOM_WORDS=用户昵称,助手名字,项目名称
+# 示例：JIEBA_CUSTOM_WORDS=用户昵称,助手名字,專案名称
 _custom_words_env = os.getenv("JIEBA_CUSTOM_WORDS", "")
 _JIEBA_USER_WORDS = [w.strip() for w in _custom_words_env.split(",") if w.strip()]
 
@@ -1643,8 +1643,8 @@ async def _keyword_search(query: str, limit: int = 10, heat_params: dict = None,
     关键词搜索（v5.7：升级为 RRF 混合检索的一路）
     
     改进：
-    - 同时搜索标题和内容（标题命中权重更高）
-    - 返回格式与向量搜索完全一致（含热度字段）
+    - 同时搜索标题和內容（标题命中权重更高）
+    - 回傳格式与向量搜索完全一致（含活躍度字段）
     - 不做召回追踪（由 search_memories 统一处理）
     - v5.8：project_id 过滤
     """
@@ -1658,7 +1658,7 @@ async def _keyword_search(query: str, limit: int = 10, heat_params: dict = None,
     
     pool = await get_pool()
     async with pool.acquire() as conn:
-        # 内容命中计分（每个关键词命中 +1）
+        # 內容命中计分（每个关键词命中 +1）
         content_case_parts = []
         # 标题命中计分（每个关键词命中 +1.5，标题匹配更有价值）
         title_case_parts = []
@@ -1669,14 +1669,14 @@ async def _keyword_search(query: str, limit: int = 10, heat_params: dict = None,
             params.append(kw)
         
         hit_count_expr = " + ".join(content_case_parts) + " + " + " + ".join(title_case_parts)
-        max_hits = len(keywords) * 2.5  # 内容最多 N 分 + 标题最多 1.5N 分
+        max_hits = len(keywords) * 2.5  # 內容最多 N 分 + 标题最多 1.5N 分
         
-        # WHERE：内容 OR 标题命中任一关键词
+        # WHERE：內容 OR 标题命中任一关键词
         content_where = [f"m.content ILIKE '%' || ${i+1} || '%'" for i in range(len(keywords))]
         title_where = [f"COALESCE(m.title, '') ILIKE '%' || ${i+1} || '%'" for i in range(len(keywords))]
         where_clause = " OR ".join(content_where + title_where)
         
-        # v5.8：项目过滤
+        # v5.8：專案过滤
         if project_id:
             proj_idx = len(keywords) + 1
             project_clause = f"AND (m.project_id IS NULL OR m.project_id = ${proj_idx})"
@@ -1748,10 +1748,10 @@ async def _keyword_search(query: str, limit: int = 10, heat_params: dict = None,
 
 async def get_recent_memories(limit: int = 20, category_id: int = None, project_id: str = None):
     """
-    最近记忆。
+    最近記憶。
     project_id 语义（保持与本函数原有调用方一致）：
-      - 传值 → 只看该项目的记忆（m.project_id = project_id）
-      - 不传 / 空 → 不过滤项目（全部）
+      - 传值 → 只看该專案的記憶（m.project_id = project_id）
+      - 不传 / 空 → 不过滤專案（全部）
     """
     pool = await get_pool()
     base_select = """SELECT m.id, m.content, m.importance, m.created_at,
@@ -1787,21 +1787,21 @@ async def get_all_memories_count():
 
 
 # ============================================================
-# 记忆去重检测
+# 記憶去重检测
 # ============================================================
 
 async def check_memory_duplicate(new_content: str, threshold: float = None, new_title: str = "", project_id: str = None):
     """
-    检查新记忆是否与已有记忆重复（v5.4：标题不同时不判重复）
+    检查新記憶是否与已有記憶重复（v5.4：标题不同时不判重复）
 
     三层检测：
     1. 精确匹配
     2. 包含关系
     3. 字符重叠度 + 标题保护（标题明显不同 → 不同主题 → 放行）
 
-    project_id: 传入时只在该项目内去重；不传时只在全局（project_id IS NULL）去重
+    project_id: 传入时只在该專案內去重；不传时只在全局（project_id IS NULL）去重
 
-    返回：(is_duplicate: bool, similar_results: list)
+    回傳：(is_duplicate: bool, similar_results: list)
 
     注意：去重仍用字符级检测（而非向量），因为去重需要精确判断，
     而向量搜索更适合"模糊相关"的场景。
@@ -1891,27 +1891,27 @@ async def check_memory_duplicate(new_content: str, threshold: float = None, new_
 
 async def migrate_embeddings(batch_size: int = 20) -> dict:
     """
-    为所有缺少 embedding 的记忆生成向量
+    为所有缺少 embedding 的記憶生成向量
     
     分批处理，避免一次性调用太多 API
-    返回迁移统计信息
+    回傳迁移统计信息
     """
     pool = await get_pool()
     
     async with pool.acquire() as conn:
-        # 找出所有没有 embedding 的记忆
+        # 找出所有没有 embedding 的記憶
         rows = await conn.fetch(
             "SELECT id, content FROM memories WHERE embedding IS NULL ORDER BY id"
         )
     
     if not rows:
-        return {"status": "done", "message": "所有记忆都已有向量", "migrated": 0, "failed": 0}
+        return {"status": "done", "message": "所有記憶都已有向量", "migrated": 0, "failed": 0}
     
     total = len(rows)
     migrated = 0
     failed = 0
     
-    print(f"🔄 开始迁移 {total} 条记忆的向量...")
+    print(f"🔄 开始迁移 {total} 条記憶的向量...")
     
     # 分批处理
     for i in range(0, total, batch_size):
@@ -1933,9 +1933,9 @@ async def migrate_embeddings(batch_size: int = 20) -> dict:
                     migrated += 1
                 else:
                     failed += 1
-                    print(f"   ⚠️  #{row_id} embedding 生成失败")
+                    print(f"   ⚠️  #{row_id} embedding 生成失敗")
     
-    print(f"✅ 迁移完成：{migrated} 成功，{failed} 失败，共 {total} 条")
+    print(f"✅ 迁移完成：{migrated} 成功，{failed} 失敗，共 {total} 条")
     
     return {
         "status": "done",
@@ -1991,7 +1991,7 @@ def _normalize_api_format(value, allow_none: bool = False):
 
     入口处统一校验，根治脏数据/恶意值（避免前端拼进 innerHTML 时的 XSS，
     也避免请求链路里拿到未知格式）。
-      - 合法（openai/anthropic）→ 原样返回
+      - 合法（openai/anthropic）→ 原样回傳
       - allow_none 且为空 → None（模型级表示"跟随供应商"）
       - 其他一律回落到 'openai'
     """
@@ -2087,7 +2087,7 @@ async def get_all_saved_models():
 async def add_provider_model(provider_id: int, model_id: str, display_name: str = '',
                              model_type: str = 'chat', input_modes: str = 'text',
                              output_modes: str = 'text', capabilities: str = '', api_format: str = None):
-    """添加模型到供应商"""
+    """新增模型到供应商"""
     api_format = _normalize_api_format(api_format, allow_none=True)
     pool = await get_pool()
     async with pool.acquire() as conn:
@@ -2144,7 +2144,7 @@ async def delete_provider_model(model_pk_id: int):
 
 
 async def resolve_provider_for_model(model_id: str):
-    """根据 model_id 查找对应的已启用供应商，返回 {api_base_url, api_key, api_format, provider_name} 或 None
+    """根据 model_id 查找对应的已启用供应商，回傳 {api_base_url, api_key, api_format, provider_name} 或 None
 
     api_format 优先级：模型级 > 供应商级 > 默认 'openai'
     """
@@ -2163,7 +2163,7 @@ async def resolve_provider_for_model(model_id: str):
 
 
 # ============================================================
-# 记忆分类管理（v3.7）
+# 記憶分类管理（v3.7）
 # ============================================================
 
 async def get_all_categories():
@@ -2219,7 +2219,7 @@ async def update_category(category_id: int, **kwargs):
 
 
 async def delete_category(category_id: int):
-    """删除分类（记忆的 category_id 会自动设为 NULL）"""
+    """删除分类（記憶的 category_id 会自动设为 NULL）"""
     pool = await get_pool()
     async with pool.acquire() as conn:
         result = await conn.execute(
@@ -2231,7 +2231,7 @@ async def delete_category(category_id: int):
 async def match_category_by_name(name_hint: str):
     """
     根据名称模糊匹配分类（用于自动归类）
-    返回匹配到的 category_id，没匹配到返回 None
+    回傳匹配到的 category_id，没匹配到回傳 None
     """
     if not name_hint:
         return None
@@ -2401,11 +2401,11 @@ async def sync_upsert_messages(conv_id: str, messages: list):
 
 
 # ============================================================
-# 云端同步 — 项目 CRUD（v4.1）
+# 云端同步 — 專案 CRUD（v4.1）
 # ============================================================
 
 async def sync_get_projects():
-    """获取所有项目"""
+    """获取所有專案"""
     pool = await get_pool()
     async with pool.acquire() as conn:
         rows = await conn.fetch("""
@@ -2415,7 +2415,7 @@ async def sync_get_projects():
 
 
 async def sync_upsert_project(proj: dict):
-    """创建或更新项目"""
+    """创建或更新專案"""
     pool = await get_pool()
     async with pool.acquire() as conn:
         await conn.execute("""
@@ -2433,7 +2433,7 @@ async def sync_upsert_project(proj: dict):
                 updated_at = EXCLUDED.updated_at
         """,
             str(proj.get("id", "")),
-            proj.get("name", "新项目") or "新项目",
+            proj.get("name", "新專案") or "新專案",
             proj.get("icon", "📁") or "📁",
             proj.get("description") or "",
             proj.get("instructions") or "",
@@ -2448,7 +2448,7 @@ async def sync_upsert_project(proj: dict):
 
 
 async def sync_delete_project(proj_id: str):
-    """删除项目"""
+    """删除專案"""
     pool = await get_pool()
     async with pool.acquire() as conn:
         result = await conn.execute(
@@ -2462,20 +2462,20 @@ async def sync_delete_project(proj_id: str):
 # ============================================================
 
 async def sync_import_all(conversations: list, projects: list):
-    """一次性导入所有对话和项目（localStorage → 数据库）"""
+    """一次性导入所有对话和專案（localStorage → 数据库）"""
     imported_convs = 0
     imported_msgs = 0
     imported_projs = 0
     errors = []
 
-    # 导入项目
+    # 导入專案
     for proj in projects:
         try:
             await sync_upsert_project(proj)
             imported_projs += 1
         except Exception as e:
-            errors.append(f"项目 {proj.get('id', '?')}: {e}")
-            print(f"⚠️ 项目导入失败: {proj.get('id', '?')} — {e}")
+            errors.append(f"專案 {proj.get('id', '?')}: {e}")
+            print(f"⚠️ 專案导入失敗: {proj.get('id', '?')} — {e}")
 
     # 导入对话 + 消息
     for conv in conversations:
@@ -2491,7 +2491,7 @@ async def sync_import_all(conversations: list, projects: list):
             imported_convs += 1
         except Exception as e:
             errors.append(f"对话 {conv.get('id', '?')}: {e}")
-            print(f"⚠️ 对话导入失败: {conv.get('id', '?')} — {e}")
+            print(f"⚠️ 对话导入失敗: {conv.get('id', '?')} — {e}")
 
     return {
         "conversations": imported_convs,
@@ -2509,7 +2509,7 @@ import json as _json
 from datetime import datetime as _dt, timezone as _tz
 
 def _to_json(val):
-    """将值转为 JSON 字符串（用于 JSONB 列），None 原样返回"""
+    """将值转为 JSON 字符串（用于 JSONB 列），None 原样回傳"""
     if val is None:
         return None
     if isinstance(val, str):
@@ -2567,7 +2567,7 @@ async def create_reminder(reminder: dict) -> dict:
 
 
 async def get_reminders(include_completed=False) -> list:
-    """获取所有提醒（默认只返回 pending + enabled）"""
+    """获取所有提醒（默认只回傳 pending + enabled）"""
     pool = await get_pool()
     async with pool.acquire() as conn:
         if include_completed:
@@ -2704,7 +2704,7 @@ async def fire_reminder(rid: str, repeat_type: str, repeat_config: dict = None) 
 
 
 # ============================================================
-# 日历记忆页面 CRUD
+# 日历記憶页面 CRUD
 # ============================================================
 
 async def save_calendar_page(date_str: str, page_type: str, sections: list, diary: str = "",
@@ -2793,9 +2793,9 @@ async def delete_calendar_page(date_str: str, page_type: str = "day"):
 async def get_calendar_for_injection(lookback_days: int = 365):
     """
     v5.5 俄罗斯套娃式日历层级注入：
-    查询最近 N 天内所有日历页面，返回按层级去重后的条目列表。
-    已被更高层级覆盖的条目不返回。
-    返回 [{type, date, label, digest, summary, keywords}, ...]
+    查询最近 N 天內所有日历页面，回傳按层级去重后的条目列表。
+    已被更高层级覆盖的条目不回傳。
+    回傳 [{type, date, label, digest, summary, keywords}, ...]
     """
     from datetime import date as date_cls, timedelta
     import calendar as cal_mod
@@ -2936,7 +2936,7 @@ async def get_calendar_for_injection(lookback_days: int = 365):
 
 
 async def get_chat_messages_for_date(date_str: str):
-    """读取指定日期的所有聊天消息（用于生成日页面，排除项目对话）"""
+    """读取指定日期的所有聊天消息（用于生成日页面，排除專案对话）"""
     from datetime import date as date_cls
     pool = await get_pool()
     d = date_cls.fromisoformat(date_str)
@@ -2972,7 +2972,7 @@ async def create_comment(target_type: str, target_id: int, content: str,
 
 
 async def get_comments(target_type: str, target_id: int):
-    """读取某个内容的所有评论（含嵌套）"""
+    """读取某个內容的所有评论（含嵌套）"""
     pool = await get_pool()
     async with pool.acquire() as conn:
         rows = await conn.fetch("""
@@ -2992,7 +2992,7 @@ async def delete_comment(comment_id: int):
 
 
 # ============================================================
-# Dream 记忆场景 CRUD
+# Dream 記憶场景 CRUD
 # ============================================================
 
 def _jsonb_to_python(value, fallback):
@@ -3032,7 +3032,7 @@ async def _get_scene_embedding_json(title: str, atomic_facts, scene_label: str =
         print(f"⚠️ 场景 embedding 生成异常 {scene_label}: {type(e).__name__}: {e}")
         return None
     if embedding is None:
-        print(f"⚠️ 场景 embedding 生成失败 {scene_label}，将保留 NULL")
+        print(f"⚠️ 场景 embedding 生成失敗 {scene_label}，将保留 NULL")
         return None
     return json.dumps(embedding)
 
@@ -3040,7 +3040,7 @@ async def _get_scene_embedding_json(title: str, atomic_facts, scene_label: str =
 async def create_mem_scene(title: str, narrative: str, atomic_facts: list = None,
                             foresight: list = None, related_memory_ids: list = None,
                             dream_id: int = None):
-    """创建记忆场景"""
+    """创建記憶场景"""
     pool = await get_pool()
     af = json.dumps(atomic_facts or [], ensure_ascii=False)
     fs = json.dumps(foresight or [], ensure_ascii=False)
@@ -3056,7 +3056,7 @@ async def create_mem_scene(title: str, narrative: str, atomic_facts: list = None
 
 
 async def update_mem_scene(scene_id: int, **kwargs):
-    """更新记忆场景"""
+    """更新記憶场景"""
     pool = await get_pool()
     refresh_embedding = any(key in kwargs for key in ("title", "atomic_facts"))
     embedding_json = None
@@ -3098,7 +3098,7 @@ async def update_mem_scene(scene_id: int, **kwargs):
 
 
 async def get_active_scenes():
-    """获取所有活跃的记忆场景"""
+    """获取所有活跃的記憶场景"""
     pool = await get_pool()
     async with pool.acquire() as conn:
         rows = await conn.fetch(
@@ -3146,7 +3146,7 @@ async def search_scenes(query_embedding: list, limit: int = 2, min_sim: float = 
 
 
 async def get_unprocessed_memories():
-    """获取未被Dream处理过的碎片记忆（仅全局，排除项目碎片）"""
+    """获取未被Dream处理过的碎片記憶（仅全局，排除專案碎片）"""
     pool = await get_pool()
     async with pool.acquire() as conn:
         rows = await conn.fetch("""
@@ -3164,18 +3164,18 @@ async def get_unprocessed_memories():
 
 async def get_aging_memories(min_age_days: int = 5, limit: int = 20, cooldown_days: int = 21):
     """
-    获取适合软化的老碎片（v5.9）
+    获取适合柔化的老碎片（v5.9）
     
     条件：
     - 已经被 Dream 处理过（不是新碎片）
     - 未锁定
     - 仍然活着
-    - resolution > 0.3（还有软化空间）
+    - resolution > 0.3（还有柔化空间）
     - 创建超过 min_age_days 天
-    - importance < 8（高重要性的不主动软化）
-    - 距离上次软化超过 cooldown_days 天
+    - importance < 8（高重要性的不主动柔化）
+    - 距离上次柔化超过 cooldown_days 天
     
-    按创建时间从老到新排序（最老的优先考虑软化）
+    按创建时间从老到新排序（最老的优先考虑柔化）
     """
     pool = await get_pool()
     async with pool.acquire() as conn:
@@ -3204,14 +3204,14 @@ async def get_aging_memories(min_age_days: int = 5, limit: int = 20, cooldown_da
 
 
 async def get_permanent_memories(project_id: str = None):
-    """获取长期设定记忆。
+    """获取长期设定記憶。
 
     project_id:
-      - None（默认，全局对话）→ 只返回全局锁定记忆（project_id IS NULL）
-      - 传入值（项目对话）→ 返回全局锁定 + 该项目锁定（IS NULL OR = project_id）
+      - None（默认，全局对话）→ 只回傳全局锁定記憶（project_id IS NULL）
+      - 传入值（專案对话）→ 回傳全局锁定 + 该專案锁定（IS NULL OR = project_id）
 
-    这样既不会让项目锁定记忆泄漏到全局对话（这是 PR #10 的原始意图），
-    也不会让项目对话拿不到自己项目锁定的设定（Codex 反馈的回归 bug）。
+    这样既不会让專案锁定記憶泄漏到全局对话（这是 PR #10 的原始意图），
+    也不会让專案对话拿不到自己專案锁定的设定（Codex 反馈的回归 bug）。
     """
     pool = await get_pool()
     async with pool.acquire() as conn:
@@ -3241,7 +3241,7 @@ async def mark_memories_dreamed(memory_ids: list):
 
 
 async def soft_delete_memories(memory_ids: list):
-    """软删除记忆（标记为deleted，不真正删除）"""
+    """软删除記憶（标记为deleted，不真正删除）"""
     if not memory_ids:
         return
     pool = await get_pool()
@@ -3266,7 +3266,7 @@ async def promote_memory(memory_id: int):
 # ============================================================
 
 async def create_dream_log(trigger_type: str = "manual", model: str = ""):
-    """创建Dream执行记录，返回ID"""
+    """创建Dream执行记录，回傳ID"""
     pool = await get_pool()
     async with pool.acquire() as conn:
         row = await conn.fetchrow("""
@@ -3303,14 +3303,14 @@ async def get_dream_status():
     """获取当前Dream状态"""
     pool = await get_pool()
     async with pool.acquire() as conn:
-        # 只认 4 小时内的 running 状态，超时视为崩溃
+        # 只认 4 小时內的 running 状态，超时视为崩溃
         running = await conn.fetchrow(
             "SELECT * FROM dream_logs WHERE status = 'running' AND started_at > NOW() - INTERVAL '4 hours' ORDER BY started_at DESC LIMIT 1"
         )
         # 自动清理超时的 running 记录
         await conn.execute("""
             UPDATE dream_logs SET status = 'error', finished_at = NOW(),
-                dream_narrative = COALESCE(dream_narrative, '') || '\n[超时自动标记为失败]'
+                dream_narrative = COALESCE(dream_narrative, '') || '\n[超时自动标记为失敗]'
             WHERE status = 'running' AND started_at <= NOW() - INTERVAL '4 hours'
         """)
         last = await conn.fetchrow(
@@ -3334,12 +3334,12 @@ async def get_dream_history(limit: int = 10):
 
 
 # ============================================================
-# 记忆热度报告（v5.2）
+# 記憶活躍度报告（v5.2）
 # ============================================================
 
 async def get_memory_heat_report(limit: int = 50):
     """
-    获取记忆热度报告 — 按热度排序，显示每条记忆的热度和召回数据
+    获取記憶活躍度报告 — 按活躍度排序，显示每条記憶的活躍度和召回数据
     用于 /debug/memory-heat 接口
     """
     pool = await get_pool()
@@ -3386,7 +3386,7 @@ async def get_memory_heat_report(limit: int = 50):
             "valid_until": str(row["valid_until"]) if row["valid_until"] else None,
         })
     
-    # 按热度排序
+    # 按活躍度排序
     results.sort(key=lambda x: x["heat"], reverse=True)
     return results
 
@@ -3397,7 +3397,7 @@ async def get_memory_heat_report(limit: int = 50):
 
 async def invalidate_memory(memory_id: int, reason: str = ""):
     """
-    标记记忆失效（设置 valid_until = NOW()）
+    标记記憶失效（设置 valid_until = NOW()）
     不删除数据，仅标记——搜索时会自动过滤，Dream 查历史仍可见
     """
     pool = await get_pool()
@@ -3407,13 +3407,13 @@ async def invalidate_memory(memory_id: int, reason: str = ""):
             memory_id,
         )
     reason_tag = f" | {reason}" if reason else ""
-    print(f"⏰ 记忆 #{memory_id} 已标记失效{reason_tag}")
+    print(f"⏰ 記憶 #{memory_id} 已标记失效{reason_tag}")
     return result == "UPDATE 1"
 
 
 async def create_memory_edge(from_id: int, from_type: str, to_id: int, to_type: str, edge_type: str, reason: str = "", created_by: str = "system", validate_ids: bool = False):
     """
-    创建记忆关系边（通用辅助函数）
+    创建記憶关系边（通用辅助函数）
     - 同一对 (from_id, to_id, edge_type) 不重复创建
     - validate_ids=True 时校验 ID 是否存在（Dream 调用时开启）
     """
@@ -3456,20 +3456,20 @@ async def create_memory_edge(from_id: int, from_type: str, to_id: int, to_type: 
 
 def detect_contradictions(new_title: str, new_content: str, similar_results: list, title_threshold: float = 0.7) -> list:
     """
-    从搜索结果中检测疑似矛盾的旧记忆（纯计算，不调 API）
+    从搜索结果中检测疑似矛盾的旧記憶（纯计算，不调 API）
     
     判断逻辑（v5.3）：
     1. 标题相似度 > title_threshold（同一主题）
-    2. 内容相似度在 0.4-0.85 之间（相关但不同——>0.85 是重复不是矛盾）
-    3. 新记忆比旧记忆更新（自然成立，因为新记忆还没存入库）
+    2. 內容相似度在 0.4-0.85 之间（相关但不同——>0.85 是重复不是矛盾）
+    3. 新記憶比旧記憶更新（自然成立，因为新記憶还没存入库）
     
     参数：
-        new_title: 新记忆的标题
-        new_content: 新记忆的内容
-        similar_results: check_memory_duplicate 返回的搜索结果（复用，不重复调 embedding）
+        new_title: 新記憶的标题
+        new_content: 新記憶的內容
+        similar_results: check_memory_duplicate 回傳的搜索结果（复用，不重复调 embedding）
         title_threshold: 标题相似度阈值，默认 0.7（Code 建议从 0.85 降低）
     
-    返回：疑似矛盾的旧记忆 ID 列表
+    回傳：疑似矛盾的旧記憶 ID 列表
     """
     if not new_title or not similar_results:
         return []
@@ -3482,12 +3482,12 @@ def detect_contradictions(new_title: str, new_content: str, similar_results: lis
         if not old_title:
             continue
         
-        # v5.3 保护：手动录入的记忆置信度最高，不被自动矛盾检测标失效
-        # 只有用户手动编辑或 Dream 裁决才能改变手动记忆
+        # v5.3 保护：手动录入的記憶置信度最高，不被自动矛盾检测标失效
+        # 只有用户手动编辑或 Dream 裁决才能改变手动記憶
         if mem.get("source") == "user_explicit":
             continue
         
-        # v5.3 保护：锁定记忆也不被自动标失效
+        # v5.3 保护：锁定記憶也不被自动标失效
         if mem.get("is_permanent"):
             continue
         
@@ -3502,14 +3502,14 @@ def detect_contradictions(new_title: str, new_content: str, similar_results: lis
         if title_sim < title_threshold:
             continue
         
-        # 内容相似度：用 search_memories 已经算好的 similarity
+        # 內容相似度：用 search_memories 已经算好的 similarity
         content_sim = mem.get("similarity", 0)
         
         # 相似度在 0.4-0.85 之间 = 相关但不同（疑似矛盾/更新）
         # > 0.85 已经被去重检测处理了，< 0.4 说明不是同一件事
         if 0.4 <= content_sim <= 0.85:
             contradicted_ids.append(mem["id"])
-            print(f"   ⚡ 疑似矛盾: 新[{new_title}] vs 旧#{mem['id']}[{old_title}]（标题sim={title_sim:.2f}, 内容sim={content_sim:.2f}）")
+            print(f"   ⚡ 疑似矛盾: 新[{new_title}] vs 旧#{mem['id']}[{old_title}]（标题sim={title_sim:.2f}, 內容sim={content_sim:.2f}）")
     
     return contradicted_ids
 
@@ -3520,13 +3520,13 @@ def detect_contradictions(new_title: str, new_content: str, similar_results: lis
 
 async def resolve_model_endpoint(model_id: str) -> tuple:
     """
-    为后台任务（记忆提取 / Dream / 每日整理 / 切窗摘要）解析模型的 API 端点。
+    为后台任务（記憶提取 / Dream / 每日整理 / 切窗摘要）解析模型的 API 端点。
 
     解析顺序：
     1. 供应商数据库（模型在某个 provider 下注册了）
     2. 环境变量降级（MEMORY_API_BASE_URL / API_BASE_URL + 对应 key）
 
-    返回：(api_url, api_key, api_format)
+    回傳：(api_url, api_key, api_format)
       - api_format == 'anthropic' 时 api_url 是 Anthropic messages 端点
       - 否则 api_url 以 /chat/completions 结尾
     调用方配合 anthropic_adapter.prepare_background_request /
@@ -3547,7 +3547,7 @@ async def resolve_model_endpoint(model_id: str) -> tuple:
                 print(f"🔀 后台任务路由到 [{provider_info['provider_name']}] (format={api_format}): {model_id}")
                 return api_url, api_key, api_format
         except Exception as e:
-            print(f"⚠️ 供应商路由查询失败，降级到环境变量: {e}")
+            print(f"⚠️ 供应商路由查询失敗，降级到环境变量: {e}")
 
     # 降级：环境变量（按 OpenAI 兼容端点处理）
     _raw = os.getenv("MEMORY_API_BASE_URL", "") or os.getenv("API_BASE_URL", "https://openrouter.ai/api/v1/chat/completions")
@@ -3557,11 +3557,11 @@ async def resolve_model_endpoint(model_id: str) -> tuple:
 
 
 # ============================================================
-# v5.8：项目相关函数
+# v5.8：專案相关函数
 # ============================================================
 
 async def get_project_by_id(project_id: str) -> dict:
-    """根据 ID 获取项目（含 instructions, memory, files）"""
+    """根据 ID 获取專案（含 instructions, memory, files）"""
     pool = await get_pool()
     async with pool.acquire() as conn:
         row = await conn.fetchrow(
@@ -3573,13 +3573,13 @@ async def get_project_by_id(project_id: str) -> dict:
 
 
 # ============================================================
-# v5.8：项目文件分块 + 向量搜索
+# v5.8：專案文件分块 + 向量搜索
 # ============================================================
 
 def chunk_text(text: str, chunk_size: int = 500, overlap: int = 50) -> list:
     """
     把长文本切成固定大小的块（带重叠防断句）。
-    返回 list[str]。
+    回傳 list[str]。
     """
     if not text or len(text.strip()) == 0:
         return []
@@ -3602,7 +3602,7 @@ def chunk_text(text: str, chunk_size: int = 500, overlap: int = 50) -> list:
 async def save_file_chunks(project_id: str, file_id: str, file_name: str, text_content: str, chunk_size: int = 500, overlap: int = 50) -> int:
     """
     把文件文本切块 + 生成嵌入 + 存入数据库。
-    返回存储的块数。
+    回傳存储的块数。
     """
     chunks = chunk_text(text_content, chunk_size=chunk_size, overlap=overlap)
     if not chunks:
@@ -3623,13 +3623,13 @@ async def save_file_chunks(project_id: str, file_id: str, file_name: str, text_c
             )
         saved += 1
     
-    print(f"📄 文件 [{file_name}] 切成 {saved} 块并存储（项目 {project_id}）")
+    print(f"📄 文件 [{file_name}] 切成 {saved} 块并存储（專案 {project_id}）")
     return saved
 
 
 async def search_file_chunks(project_id: str, query: str, limit: int = 6) -> list:
     """
-    在项目文件块中语义搜索，返回最相关的块。
+    在專案文件块中语义搜索，回傳最相关的块。
     """
     query_embedding = await get_embedding(query)
     if query_embedding is None:
@@ -3655,7 +3655,7 @@ async def search_file_chunks(project_id: str, query: str, limit: int = 6) -> lis
             continue
         
         sim = cosine_similarity(query_embedding, chunk_emb)
-        if sim < 0.3:  # 文件块用更低的阈值（内容可能不是对话式的）
+        if sim < 0.3:  # 文件块用更低的阈值（內容可能不是对话式的）
             continue
         
         scored.append({
@@ -3671,7 +3671,7 @@ async def search_file_chunks(project_id: str, query: str, limit: int = 6) -> lis
     results = scored[:limit]
     
     if results:
-        print(f"📂 文件搜索 '{query[:30]}...' → 命中 {len(results)} 块（项目 {project_id}）")
+        print(f"📂 文件搜索 '{query[:30]}...' → 命中 {len(results)} 块（專案 {project_id}）")
         for r in results[:3]:
             print(f"   📎 [{r['file_name']}#chunk{r['chunk_index']}] sim={r['similarity']:.3f}: {r['content'][:50]}...")
     
@@ -3688,12 +3688,12 @@ async def delete_file_chunks(project_id: str, file_id: str) -> int:
         )
         count = int(result.split()[-1]) if result else 0
         if count:
-            print(f"🗑️ 删除了文件块 {count} 条（项目 {project_id}, 文件 {file_id}）")
+            print(f"🗑️ 删除了文件块 {count} 条（專案 {project_id}, 文件 {file_id}）")
         return count
 
 
 async def delete_all_file_chunks(project_id: str) -> int:
-    """删除整个项目的所有文件块"""
+    """删除整个專案的所有文件块"""
     pool = await get_pool()
     async with pool.acquire() as conn:
         result = await conn.execute(
@@ -3702,7 +3702,7 @@ async def delete_all_file_chunks(project_id: str) -> int:
         )
         count = int(result.split()[-1]) if result else 0
         if count:
-            print(f"🗑️ 删除了项目所有文件块 {count} 条（项目 {project_id}）")
+            print(f"🗑️ 删除了專案所有文件块 {count} 条（專案 {project_id}）")
         return count
 
 
@@ -3712,22 +3712,22 @@ async def delete_all_file_chunks(project_id: str) -> int:
 
 async def search_chat_messages(query: str, project_id: str = None, limit: int = 20, context_size: int = 2):
     """
-    搜索对话消息内容 + 对话标题。
+    搜索对话消息內容 + 对话标题。
     
     参数：
         query: 搜索关键词
-        project_id: 项目ID（提供时只搜该项目内的对话，'none' 表示只搜无项目的对话）
-        limit: 最多返回多少条匹配
+        project_id: 專案ID（提供时只搜该專案內的对话，'none' 表示只搜无專案的对话）
+        limit: 最多回傳多少条匹配
         context_size: 每条匹配上下各取几条消息作为上下文
     
-    返回按对话分组的结果，每组包含对话信息和匹配消息（含上下文）。
+    回傳按对话分组的结果，每组包含对话信息和匹配消息（含上下文）。
     """
     if not query or not query.strip():
         return {"title_matches": [], "message_matches": []}
     
     pool = await get_pool()
     async with pool.acquire() as conn:
-        # 构建项目过滤
+        # 构建專案过滤
         params = [f"%{query.strip()}%"]
         
         if project_id == 'none':
@@ -3738,7 +3738,7 @@ async def search_chat_messages(query: str, project_id: str = None, limit: int = 
         else:
             proj_filter = ""
         
-        # 搜索消息内容（只搜 user 和 assistant 的消息）
+        # 搜索消息內容（只搜 user 和 assistant 的消息）
         params.append(limit)
         limit_idx = len(params)
         

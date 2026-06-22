@@ -1,19 +1,19 @@
 """
-数据库模块 —— 负责所有跟 PostgreSQL 打交道的事情
+資料庫模組 —— 負責所有跟 PostgreSQL 打交道的事情
 ==============================================
 包括：
-- 创建表结构
-- 存储对话记录
-- 存储/检索记忆（RRF 混合检索：向量 + 关键词并行 → 融合排序）
-- 删除/清空/更新记忆
-- 记忆去重检测
-- Embedding 向量生成与存储
+- 建立表格結構
+- 儲存對話記錄
+- 儲存/檢索記憶（RRF 混合檢索：向量 + 關鍵字平行 → 融合排序）
+- 刪除/清空/更新記憶
+- 記憶去重檢測
+- Embedding 向量產生與存儲
 
-v5.7 升级：RRF 混合检索
-- 向量搜索和关键词搜索并行执行（asyncio.gather）
-- Reciprocal Rank Fusion 合并两路结果
-- 关键词搜索增加标题匹配（标题命中权重 1.5x）
-- 召回追踪统一在合并后执行（不重复追踪）
+v5.7 升級：RRF 混合檢索
+- 向量搜尋和關鍵字搜尋並行執行（asyncio.gather）
+- Reciprocal Rank Fusion 合併兩路結果
+- 關鍵字搜尋增加標題匹配（標題命中權重 1.5x）
+- 召回追蹤統一在合併後執行（不重複追蹤）
 """
 
 import os
@@ -38,17 +38,17 @@ DATABASE_URL = os.getenv("DATABASE_URL", "")
 
 EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "openai/text-embedding-3-small")
 
-# 搜索权重（向量版）
+# 搜尋權重（向量版）
 WEIGHT_SEMANTIC = float(os.getenv("WEIGHT_SEMANTIC", "0.5"))
 WEIGHT_IMPORTANCE = float(os.getenv("WEIGHT_IMPORTANCE", "0.15"))
 WEIGHT_RECENCY = float(os.getenv("WEIGHT_RECENCY", "0.1"))
 WEIGHT_HEAT = float(os.getenv("WEIGHT_HEAT", "0.25"))
 
-# RRF（Reciprocal Rank Fusion）参数
-# k 值越大，排名靠后的结果权重衰减越慢（推荐 60，业界标准）
+# RRF（Reciprocal Rank Fusion）參數
+# k 值越大，排名靠後的結果權重衰減越慢（建議 60，業界標準）
 RRF_K = int(os.getenv("RRF_K", "60"))
 
-# API 配置（和 main.py 共用环境变量）
+# API 設定（和 main.py 共用環境變數）
 API_KEY = os.getenv("API_KEY", "")
 API_BASE_URL = os.getenv("API_BASE_URL", "https://openrouter.ai/api/v1/chat/completions")
 

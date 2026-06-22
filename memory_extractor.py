@@ -1,10 +1,10 @@
 """
-记忆提取模块 —— 用 LLM 从对话中提炼关键记忆
+記憶擷取模組 —— 用 LLM 從對話中精進關鍵記憶
 =============================================
-每次对话结束后，把最近的对话内容发给一个便宜的模型，
-让它提取出值得记住的信息，存到数据库里。
+每次對話結束後，把最近的對話內容發給一個便宜的模型，
+讓它提取出值得記住的信息，存到資料庫裡。
 
-v2.3 改进：提取时注入已有记忆，让模型对比后只提取全新信息。
+v2.3 改進：提取時注入已有記憶，讓模型對比後只提取全新資訊。
 """
 
 import os
@@ -22,86 +22,85 @@ API_BASE_URL = _RAW_BASE_URL if _RAW_BASE_URL.rstrip("/").endswith("/chat/comple
 MEMORY_MODEL = os.getenv("MEMORY_MODEL", "anthropic/claude-haiku-4")
 
 
-EXTRACTION_PROMPT = """你是信息提取专家，负责从对话中识别并提取值得长期记住的关键信息。
+EXTRACTION_PROMPT = """你是資訊提取專家，負責從對話中識別並提取值得長期記住的關鍵資訊。
 
-# 提取重点
-- 关键信息：仅提取用户的重要信息，忽略日常琐事
-- 重要事件：记忆深刻的互动，需包含人物、时间、地点（如有）
+# 提取重點
+- 關鍵訊息：僅提取用戶的重要訊息，忽略日常瑣事
+- 重要事件：記憶深刻的互動，需包含人物、時間、地點（如有）
 
-# 提取范围
-- 个人：年龄、生日、职业、学历、居住地
-- 偏好：明确表达的喜好或厌恶
-- 健康：身体状况、过敏史、饮食禁忌
-- 事件：与AI的重要互动、约定、里程碑
-- 关系：家人、朋友、重要同事
-- 价值观：表达的信念或长期目标
-- 情感：重要的情感时刻或关系里程碑
+# 提取範圍
+- 個人：年齡、生日、職業、學歷、居住地
+- 偏好：明確表達的喜好或厭惡
+- 健康：身體狀況、過敏史、飲食禁忌
+- 事件：與AI的重要互動、約定、里程碑
+- 關係：家人、朋友、重要同事
+- 價值觀：表達的信念或長期目標
+- 情感：重要的情感時刻或關係里程碑
 
 {emotion_instruction}
 
 # 不要提取
-- 日常寒暄（"你好""在吗"）
-- AI的一般性回复、长篇论述和解释说明（但 AI 做出的承诺、约定、重要表态、对关系有意义的话需要提取）
-- 关于记忆系统本身的讨论（"某条记忆没有被记录""记忆遗漏""没有被提取"等）
-- 技术调试、bug修复的过程性讨论（除非涉及用户技能或项目里程碑）
-- AI的思考过程、思维链内容
+- 日常寒暄（"你好""在嗎"）
+- AI的一般回應、長篇論述和解釋說明（但 AI 所做的承諾、約定、重要表態、對關係有意義的話需要提取）
+- 關於記憶系統本身的討論（"某記憶沒有被記錄""記憶遺漏""沒有被提取"等）
+- 技術調試、bug修復的過程性討論（除非涉及用戶技能或專案里程碑）
+- AI的思考過程、思考鏈內容
 
-# 已知信息处理【最重要】
-<已知信息>
+# 已知資訊處理【最重要】
+<已知資訊>
 {existing_memories}
-</已知信息>
+</已知資訊>
 
-- 新信息必须与已知信息逐条比对
-- 相同、相似或语义重复的信息必须忽略（例如已知"用户去妈妈家吃团年饭"，就不要再提取"用户春节去了妈妈家"）
-- 已知信息的补充或更新可以提取（例如已知"用户养了一只猫"，新信息"猫最近生病了"可以提取）
-- 与已知信息矛盾的新信息可以提取（标注为更新）
-- 仅提取完全新增且不与已知信息重复的内容
-- 如果对话中没有任何新信息，返回空数组 []
-
-# 可用的分类列表
+- 新資訊必須與已知資訊逐條比對
+- 相同、相似或語意重複的資訊必須忽略（例如已知"用戶去媽媽家吃團年飯"，就不要再提取"用戶春節去了媽媽家"）
+- 已知資訊的補充或更新可以提取（例如已知"用戶養了一隻貓"，新資訊"貓最近生病了"可以提取）
+- 與已知資訊矛盾的新資訊可以提取（標註為更新）
+- 僅提取完全新增且不與已知資訊重複的內容
+- 如果對話中沒有任何新訊息，回傳空數組 []
+# 可用的分類列表
 {categories_list}
 
-# 输出格式
-请用以下 JSON 格式返回（不要包含其他内容）：
+# 輸出格式
+請用以下 JSON 格式回傳（不要包含其他內容）：
 [
-  {"title": "简短标题", "content": "记忆内容", "importance": 分数, "emotional_weight": 情绪浓度, "category": "分类名"},
-  {"title": "简短标题", "content": "记忆内容", "importance": 分数, "emotional_weight": 情绪浓度, "category": "分类名"}
+  {"title": "簡短標題", "content": "記憶內容", "importance": 分數, "emotional_weight": 情緒濃度, "category": "分類名"},
+  {"title": "簡短標題", "content": "記憶內容", "importance": 分數, "emotional_weight": 情緒濃度, "category": "分類名"},
 ]
 
-字段说明：
-- title: 用4-10个字概括这条记忆的主题（如"饮食偏好""用药方案""情感里程碑"）
-- content: 记忆的具体内容
-- importance: 信息重要度 1-10，10 最重要
-- emotional_weight: 情绪浓度 0-10，0=无情绪，10=极强情绪。判断标准是对话时双方的情绪强度，不是信息重要性
-- category: 从上面的分类列表中选择最合适的一个，如果都不合适就填空字符串 ""
-如果没有值得记住的新信息，返回空数组：[]
+字段說明：
+- title: 用4-10個字概括這記憶的主題（如"飲食偏好""用藥方案""情緒里程碑"）
+- content: 記憶的具體內容
+- importance: 訊息重要度 1-10，10 最重要
+- emotional_weight: 情緒濃度 0-10，0=無情緒，10=極強情緒。判斷標準是對話時雙方的情緒強度，不是訊息重要性
+- category: 從上面的分類清單中選擇最合適的一個，如果都不合適就填空字串 ""
+如果沒有值得記住的新訊息，回傳空數組：[]
 """
 
 # 高情绪时追加的提取指引
-EMOTION_HIGH_INSTRUCTION = """# 🩷 情绪锚点提取【本轮对话情绪浓度高，请特别注意】
-本轮对话被检测到情绪浓度较高。除了信息性记忆外，还要识别以下内容：
-- 用户表达了强烈情绪的时刻（哭泣、崩溃、特别开心、深层信任、脆弱袒露）
-- AI的回应让用户情绪发生明显变化的时刻
-- 即使没有"新信息"，只要情绪浓度高，也值得提取
-- 这类记忆的 emotional_weight 应为 6-10"""
+EMOTION_HIGH_INSTRUCTION = """# 🩷 情緒錨點提取【本輪對話情緒濃度高，請特別注意】
+本輪對話被偵測到情緒濃度較高。除了資訊性記憶外，還要辨識以下內容：
+- 使用者表達了強烈情緒的時刻（哭泣、崩潰、特別開心、深層信任、脆弱暴露）
+- AI的回應讓使用者情緒發生明顯變化的時刻
+- 即使沒有"新資訊"，只要情緒濃度高，也值得提取
+- 這類記憶的 emotional_weight 應為 6-10"""
 
 EMOTION_NORMAL_INSTRUCTION = ""
 
 
 async def extract_memories(messages: List[Dict[str, str]], existing_memories: List[str] = None, categories: List[str] = None, model_override: str = None, prompt_override: str = None, emotion_level: str = "normal") -> List[Dict]:
     """
-    从对话消息中提取记忆
+    從對話訊息中提取記憶
 
-    参数：
-        messages: 对话消息列表，格式 [{"role": "user", "content": "..."}, ...]
-        existing_memories: 已有记忆内容列表，用于去重对比
-        categories: 可用的分类名称列表，用于自动归类
-        model_override: 覆盖默认提取模型（从数据库配置传入）
-        prompt_override: 覆盖默认提取提示词（从数据库配置传入）
-        emotion_level: 本轮对话的情绪级别（'high'/'medium'/'normal'），影响提取策略
+    參數：
+        messages: 對話訊息列表，格式 [{"role": "user", "content": "..."}, ...]
+        existing_memories: 已有記憶內容列表，用於去重對比
+        categories: 可用的分類名稱列表，用於自動歸類
+        model_override: 覆蓋預設提取模型（從數據庫配置傳入）
+        prompt_override: 覆蓋預設提取提示詞（從數據庫配置傳入）
+        emotion_level: 本輪對話的情緒層次（'high'/'medium'/'normal'），影響提取策略
 
-    返回：
-        记忆列表，格式 [{"content": "...", "importance": N, "emotional_weight": N, "category": "..."}, ...]
+    回傳：
+        記憶列表，格式 [{"content": "...", "importance": N, "emotional_weight": N, "category": "..."}, ...]
     """
     if not messages:
         return []
@@ -123,13 +122,13 @@ async def extract_memories(messages: List[Dict[str, str]], existing_memories: Li
     if existing_memories:
         memories_text = "\n".join(f"- {m}" for m in existing_memories)
     else:
-        memories_text = "（暂无已知信息）"
+        memories_text = "（暫無已知資訊）"
 
     # 格式化分类列表
     if categories:
         categories_text = "、".join(categories)
     else:
-        categories_text = "（暂无分类，category 字段填空字符串即可）"
+        categories_text = "（暫無分類，category 字段填空字串即可）"
 
     # 把已有记忆和分类填入prompt（用 replace 而非 format，防止 prompt 里的花括号被误解析）
     base_prompt = prompt_override if prompt_override else EXTRACTION_PROMPT
@@ -156,7 +155,7 @@ async def extract_memories(messages: List[Dict[str, str]], existing_memories: Li
         use_api_format = "openai"
 
     if not use_api_key:
-        print("⚠️  无可用 API Key（供应商和环境变量均未配置），跳过记忆提取")
+        print("⚠️  無可用 API Key（供應商和環境變數均未配置），跳過記憶提取")
         return []
 
     # 调用 LLM 提取记忆
@@ -167,7 +166,7 @@ async def extract_memories(messages: List[Dict[str, str]], existing_memories: Li
             "max_tokens": 1000,
             "messages": [
                 {"role": "system", "content": prompt},
-                {"role": "user", "content": f"请从以下对话中提取新的记忆：\n\n{conversation_text}"},
+                {"role": "user", "content": f"請從以下對話中提取新的記憶：\n\n{conversation_text}"},
             ],
         }
         _headers, _send_body = prepare_background_request(
@@ -179,14 +178,14 @@ async def extract_memories(messages: List[Dict[str, str]], existing_memories: Li
             response = await client.post(use_api_url, headers=_headers, json=_send_body)
 
             if response.status_code != 200:
-                print(f"⚠️  记忆提取请求失败: {response.status_code}")
+                print(f"⚠️  記憶提取請求失敗: {response.status_code}")
                 return []
 
             data = parse_background_response(response.json(), use_api_format)
             text = data.get("choices", [{}])[0].get("message", {}).get("content", "")
             
-            # 日志：打印模型原始返回（方便排查）
-            print(f"🔍 记忆提取模型返回（前200字）: {text[:200]}...")
+            # 日志：打印模型原始回傳（方便排查）
+            print(f"🔍 記憶提取模型回傳（前200字）: {text[:200]}...")
 
             # 清理可能的 markdown 格式
             text = text.strip()
@@ -209,19 +208,19 @@ async def extract_memories(messages: List[Dict[str, str]], existing_memories: Li
                 if match:
                     try:
                         memories = json.loads(match.group())
-                        print(f"🔧 JSON 正则兜底解析成功")
+                        print(f"🔧 JSON 正規兜底解析成功")
                     except json.JSONDecodeError:
                         pass
             
             if not memories or not isinstance(memories, list):
-                print(f"⚠️  记忆提取返回非数组格式，跳过")
+                print(f"⚠️  記憶提取回傳非数组格式，跳過")
                 return []
 
             # 验证格式
             valid_memories = []
             for mem in memories:
                 if isinstance(mem, dict) and "content" in mem:
-                    # importance 安全转换：LLM 可能返回浮点、字符串或 null
+                    # importance 安全转换：LLM 可能回傳浮点、字符串或 null
                     try:
                         imp = int(float(mem.get("importance", 5)))
                         imp = max(1, min(10, imp))
@@ -241,12 +240,12 @@ async def extract_memories(messages: List[Dict[str, str]], existing_memories: Li
                         "category": str(mem.get("category", "")),
                     })
 
-            print(f"📝 从对话中提取了 {len(valid_memories)} 条新记忆（已对比 {len(existing_memories or [])} 条已有记忆）")
+            print(f"📝 從對話中提取了 {len(valid_memories)} 個新記憶（已對比 {len(existing_memories or [])} 條已有記憶）")
             return valid_memories
 
     except json.JSONDecodeError as e:
-        print(f"⚠️  记忆提取结果解析失败: {e}")
+        print(f"⚠️  記憶提取結果解析失敗: {e}")
         return []
     except Exception as e:
-        print(f"⚠️  记忆提取出错: {e}")
+        print(f"⚠️  記憶提取出錯: {e}")
         return []

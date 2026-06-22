@@ -148,7 +148,7 @@ tailwind.config = {
       </div>
       <textarea id="external-mcp-servers-json" rows="8" class="font-mono text-xs" spellcheck="false" placeholder='[{"name":"example","url":"https://example.com/mcp","transport":"streamable_http","enabled":true}]'></textarea>
       <div class="flex items-center gap-3 mt-3">
-        <button id="save-mcp-servers-btn" class="btn btn-primary">儲存並刷新抽屜</button>
+        <button id="save-mcp-servers-btn" class="btn btn-primary">儲存並更新抽屜</button>
         <span id="external-mcp-servers-status" class="text-xs text-gray-500"></span>
       </div>
     </div>
@@ -312,7 +312,7 @@ tailwind.config = {
       <div class="bg-panel-card border border-panel-border rounded-lg p-5">
         <p class="font-semibold mb-1">📦 導入預置記憶</p>
         <p class="text-xs text-gray-500 mb-4">从 seed_memories.py 導入預置記憶條目。</p>
-        <button class="btn btn-secondary" onclick="triggerSeed()">导入</button>
+        <button class="btn btn-secondary" onclick="triggerSeed()">導入</button>
       </div>
 
       <div class="bg-panel-card border border-panel-border rounded-lg p-5">
@@ -482,7 +482,7 @@ const CONFIG_GROUPS = {
 
 const GROUP_DESCRIPTIONS = {
   '基礎設定': '控制記憶系統的核心行為：是否開啟、多久提取一次、注入多少條、搜尋和去重的敏感度。 ',
-  '記憶新陳代謝': '模擬記憶的自然老化：老舊碎片自動軟化（模糊細節保留要點）、長期未用的鎖定碎片自動退役、過冷碎片清理。 ',
+  '記憶新陳代謝': '模擬記憶的自然老化：老舊碎片自動柔化（模糊細節保留要點）、長期未用的鎖定碎片自動退役、過冷碎片清理。 ',
   '場景注入': 'Dream 產出的敘事場景會在聊天時自動注入，提供長期記憶的宏觀視角。這裡控制是否注入、注入幾條、相似度門檻。 ',
   '外部 MCP 抽屜': '連接第三方 MCP 伺服器（如 Notion、日曆等外部工具）。抽屜會根據對話內容自動判斷是否展開外部工具。 ',
   '工具抽屜': '內部工具（記憶搜尋、行事曆查詢等）的向量路由開關。開啟後工具依語意相關性按需展開，關閉則全部傳給模型。 ',
@@ -505,10 +505,10 @@ const PARAM_DESCRIPTIONS = {
  semantic_threshold: '語意搜尋的最低相似度。低於此值的碎片不會被注入。預設：0.25，建議範圍：0.15-0.5',
  dedup_threshold: '新碎片與已有碎片的文字重疊度超過此值時判定為重複，不儲存。預設：0.55，建議範圍：0.4-0.7',
  cleanup_heat_threshold: '活躍度低於此值的碎片會被清理（軟刪除）。預設：0.15',
- auto_soften_enabled: '是否自動軟化老舊碎片（模糊細節、保留要點）。預設：開啟',
- auto_soften_daily_limit: '每天最多軟化多少個碎片，防止一次性大量重寫。預設：10',
- auto_soften_min_age: '碎片至少存在多少天才會被考慮軟化。預設：5 天',
- soften_cooldown_days: '同一碎片兩次軟化之間的冷卻期。預設：21 天',
+ auto_soften_enabled: '是否自動柔化老舊碎片（模糊細節、保留要點）。預設：開啟',
+ auto_soften_daily_limit: '每天最多柔化多少個碎片，防止一次性大量重寫。預設：10',
+ auto_soften_min_age: '碎片至少存在多少天才會被考慮柔化。預設：5 天',
+ soften_cooldown_days: '同一碎片兩次柔化之間的冷卻期。預設：21 天',
  lock_retire_enabled: '是否讓長期未被召回的鎖定碎片自動退役（解鎖但不刪除）。預設：開啟',
  lock_retire_days: '鎖定碎片超過多少天未被召回則退役。預設：90 天',
  merge_retention_days: '合併後的舊碎片保留多少天後清理。預設：90 天',
@@ -550,7 +550,7 @@ const PARAM_DESCRIPTIONS = {
  prompt_cache_enabled: '是否啟用 Claude 的明確 Prompt 快取（非 Claude 模型自動跳過）。預設：開啟',
  search_engine: '搜尋引擎類型（bing / serper / tavily 等）',
  search_api_key: '搜尋引擎的 API Key',
- search_max_results: '每次搜尋傳回多少條結果。預設：5',
+ search_max_results: '每次搜尋回傳多少條結果。預設：5',
 };
 
 let configData = {};
@@ -941,7 +941,7 @@ function heatBadge(id, inlineHeat) {
   if (heat === undefined || heat === null) return '';
   const h = parseFloat(heat);
   let cls = 'heat-cold', label = '冷';
-  if (h > 0.7) { cls = 'heat-hot'; label = '热'; }
+  if (h > 0.7) { cls = 'heat-hot'; label = '熱'; }
   else if (h >= 0.3) { cls = 'heat-warm'; label = '温'; }
   return `<span class="badge" style="background:rgba(100,116,139,0.12);color:#94a3b8"><span class="heat-dot ${cls}"></span>${h.toFixed(2)}</span>`;
 }
@@ -951,7 +951,7 @@ function renderMemories(memories, total) {
   memories.forEach(m => { memCache[m.id] = m; });
 
   if (memories.length === 0) {
-    document.getElementById('memories-list').innerHTML = '<p class="text-gray-500">没有找到記憶。</p>';
+    document.getElementById('memories-list').innerHTML = '<p class="text-gray-500">沒有找到記憶。</p>';
     document.getElementById('mem-pagination').innerHTML = '';
     return;
   }
@@ -964,7 +964,7 @@ function renderMemories(memories, total) {
           <p class="text-gray-400 text-sm">${escHtml(m.content?.slice(0, 200) || '')}</p>
           <div class="flex gap-2 mt-2 flex-wrap">
             <span class="badge ${m.importance >= 8 ? 'imp-high' : m.importance >= 5 ? 'imp-mid' : 'imp-low'}">重要度 ${m.importance}</span>
-            ${m.is_permanent ? '<span class="badge imp-high">🔒 锁定</span>' : ''}
+            ${m.is_permanent ? '<span class="badge imp-high">🔒 鎖定</span>' : ''}
             ${heatBadge(m.id, m.heat)}
             ${m.category_name ? `<span class="badge" style="background:rgba(148,163,184,0.1);color:#94a3b8">${escHtml(m.category_name)}</span>` : ''}
           </div>
@@ -1026,7 +1026,7 @@ async function deleteMemory(id) {
 
 function editMemory(id) {
   const m = memCache[id];
-  if (!m) { toast('記憶資料丢失，請刷新', false); return; }
+  if (!m) { toast('記憶資料丢失，請更新', false); return; }
   const modal = document.createElement('div');
   modal.className = 'fixed inset-0 bg-black/60 flex items-center justify-center z-50';
   modal.innerHTML = `

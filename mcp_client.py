@@ -52,7 +52,7 @@ def clear_tool_cache(url: str = None):
 async def _connect_and_list(url: str, transport: str = "streamable_http") -> list:
     """
     連接 MCP 伺服器並取得工具列表
-    返回 MCP Tool 對象列表
+    傳回 MCP Tool 對象列表
     """
     try:
         if transport == "sse":
