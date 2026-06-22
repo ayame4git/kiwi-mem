@@ -66,13 +66,13 @@ API_KEY = os.getenv("API_KEY", "")
 API_BASE_URL = os.getenv("API_BASE_URL", "https://openrouter.ai/api/v1/chat/completions")
 
 # 默认模型（如果客户端没指定就用这个）
-DEFAULT_MODEL = os.getenv("DEFAULT_MODEL", "anthropic/claude-sonnet-4.6")
+DEFAULT_MODEL = os.getenv("DEFAULT_MODEL", "anthropic/claude-sonnet-4-6")
 
 # 网关端口
 PORT = int(os.getenv("PORT", "8080"))
 
 # 记忆系统开关（数据库出问题时可以临时关掉）
-MEMORY_ENABLED = os.getenv("MEMORY_ENABLED", "false").lower() == "true"
+MEMORY_ENABLED = os.getenv("MEMORY_ENABLED", "true" if os.getenv("DATABASE_URL") else "false").lower() == "true"
 
 # 每次注入的最大记忆条数
 MAX_MEMORIES_INJECT = int(os.getenv("MAX_MEMORIES_INJECT", "15"))
@@ -114,7 +114,7 @@ async def get_extract_interval() -> int:
 
 # 额外的请求头（有些 API 需要，比如 OpenRouter 需要 Referer）
 EXTRA_REFERER = os.getenv("EXTRA_REFERER", "https://ai-memory-gateway.local")
-EXTRA_TITLE = os.getenv("EXTRA_TITLE", "AI Memory Gateway")
+EXTRA_TITLE = os.getenv("EXTRA_TITLE", "Kiwi-Mem")
 
 
 
@@ -264,7 +264,7 @@ async def lifespan(app: FastAPI):
         await close_pool()
 
 
-app = FastAPI(title="AI Memory Gateway", version="3.1.0", lifespan=lifespan)
+app = FastAPI(title="Kiwi-Mem", version="1.3.0", lifespan=lifespan)
 
 
 # ============================================================
@@ -1031,8 +1031,8 @@ async def root_status():
             pass
     return {
         "status": "running",
-        "gateway": "AI Memory Gateway v3.1 (动态配置)",
-        "version": "AI Memory Gateway v3.1",
+        "gateway": "Kiwi-Mem v1.3.0",
+        "version": "Kiwi-Mem v1.3.0",
         "memory_enabled": mem_enabled,
         "memory_count": memory_count,
         # 前端 admin-panel 读 status.memories, 加别名避免显示 '-'
