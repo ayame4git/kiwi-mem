@@ -11,61 +11,62 @@ tailwind.config = {
   theme: {
     extend: {
       colors: {
-        kiwi: { 50:'#f0fdf4', 100:'#dcfce7', 200:'#bbf7d0', 300:'#86efac', 400:'#4ade80', 500:'#22c55e', 600:'#16a34a', 700:'#15803d', 800:'#166534', 900:'#14532d' },
-        panel: { bg:'#0f1117', card:'#1a1d27', border:'#2a2d3a', hover:'#252836', input:'#1e2130' }
+        kiwi: { 50:'#f3f9ec', 100:'#e3f1d0', 200:'#cce6aa', 300:'#aed579', 400:'#8fc14e', 500:'#74a838', 600:'#5d8a2c', 700:'#496c24', 800:'#3b561f', 900:'#32481d' },
+        panel: { bg:'#f5f7f1', card:'#ffffff', border:'#e6e9e0', hover:'#f0f3ea', input:'#ffffff' }
       }
     }
   }
 }
 </script>
 <style>
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
-  .tab-active { background: rgba(34,197,94,0.1); color: #4ade80; border-right: 2px solid #4ade80; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color:#2b332b; }
+  .tab-active { background: rgba(116,168,56,0.12); color: #5d8a2c; border-right: 2px solid #74a838; }
   .stat-card { transition: transform 0.15s; }
   .stat-card:hover { transform: translateY(-2px); }
   .fade-in { animation: fadeIn 0.2s ease; }
   @keyframes fadeIn { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:translateY(0)} }
   textarea, input[type=text], input[type=number], input[type=password], select {
-    background: #1e2130; border: 1px solid #2a2d3a; color: #e2e8f0; border-radius: 6px; padding: 8px 12px; width: 100%; outline: none;
+    background: #ffffff; border: 1px solid #d9ddd0; color: #2b332b; border-radius: 6px; padding: 8px 12px; width: 100%; outline: none; transition: border-color 0.15s, box-shadow 0.15s;
   }
-  textarea:focus, input:focus, select:focus { border-color: #4ade80; }
-  input[type=color] { background: #1e2130; border: 1px solid #2a2d3a; border-radius: 6px; padding: 2px; width: 40px; height: 36px; cursor: pointer; }
+  textarea::placeholder, input::placeholder { color: #aab1a0; }
+  textarea:focus, input:focus, select:focus { border-color: #74a838; box-shadow: 0 0 0 3px rgba(116,168,56,0.15); }
+  input[type=color] { background: #ffffff; border: 1px solid #d9ddd0; border-radius: 6px; padding: 2px; width: 40px; height: 36px; cursor: pointer; }
   .btn { padding: 8px 16px; border-radius: 6px; font-size: 14px; cursor: pointer; transition: all 0.15s; border: none; }
-  .btn-primary { background: #22c55e; color: #fff; } .btn-primary:hover { background: #16a34a; }
-  .btn-secondary { background: #2a2d3a; color: #e2e8f0; } .btn-secondary:hover { background: #353849; }
-  .btn-danger { background: #dc2626; color: #fff; } .btn-danger:hover { background: #b91c1c; }
+  .btn-primary { background: #74a838; color: #fff; } .btn-primary:hover { background: #5d8a2c; }
+  .btn-secondary { background: #eef1ea; color: #46503f; } .btn-secondary:hover { background: #e2e8d8; }
+  .btn-danger { background: #e5484d; color: #fff; } .btn-danger:hover { background: #cf3a3f; }
   .btn-sm { padding: 4px 10px; font-size: 12px; }
-  .toast { position:fixed; top:20px; right:20px; padding:12px 20px; border-radius:8px; color:#fff; z-index:9999; animation:fadeIn 0.3s; }
-  .toast-ok { background:#16a34a; } .toast-err { background:#dc2626; }
-  .section-title { font-size:13px; font-weight:600; color:#94a3b8; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:12px; }
-  .config-row { display:flex; align-items:center; gap:12px; padding:10px 0; border-bottom:1px solid #1e2130; }
-  .config-label { flex:0 0 220px; font-size:14px; color:#cbd5e1; }
+  .toast { position:fixed; top:20px; right:20px; padding:12px 20px; border-radius:8px; color:#fff; z-index:9999; animation:fadeIn 0.3s; box-shadow:0 6px 20px rgba(0,0,0,0.12); }
+  .toast-ok { background:#5d8a2c; } .toast-err { background:#e5484d; }
+  .section-title { font-size:13px; font-weight:600; color:#6b7280; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:12px; }
+  .config-row { display:flex; align-items:center; gap:12px; padding:10px 0; border-bottom:1px solid #eef1ea; }
+  .config-label { flex:0 0 220px; font-size:14px; color:#4b5547; }
   .config-value { flex:1; }
-  .memory-card { background:#1e2130; border:1px solid #2a2d3a; border-radius:8px; padding:14px; margin-bottom:8px; }
-  .memory-card:hover { border-color:#353849; }
+  .memory-card { background:#ffffff; border:1px solid #e6e9e0; border-radius:8px; padding:14px; margin-bottom:8px; transition:border-color 0.15s; }
+  .memory-card:hover { border-color:#cdd4c2; }
   .badge { display:inline-block; padding:2px 8px; border-radius:10px; font-size:11px; }
-  .imp-high { background:rgba(168,85,247,0.15); color:#c084fc; }
-  .imp-mid { background:rgba(96,165,250,0.15); color:#60a5fa; }
-  .imp-low { background:rgba(74,222,128,0.15); color:#4ade80; }
-  .loading { display:inline-block; width:16px; height:16px; border:2px solid #2a2d3a; border-top:2px solid #4ade80; border-radius:50%; animation:spin 0.6s linear infinite; }
+  .imp-high { background:rgba(139,92,246,0.12); color:#7c3aed; }
+  .imp-mid { background:rgba(59,130,246,0.12); color:#2563eb; }
+  .imp-low { background:rgba(116,168,56,0.15); color:#5d8a2c; }
+  .loading { display:inline-block; width:16px; height:16px; border:2px solid #e6e9e0; border-top:2px solid #74a838; border-radius:50%; animation:spin 0.6s linear infinite; }
   @keyframes spin { to{transform:rotate(360deg)} }
   .accordion-header { cursor:pointer; display:flex; align-items:center; justify-content:space-between; user-select:none; }
   .accordion-header:hover { opacity:0.85; }
-  .accordion-arrow { transition:transform 0.2s; font-size:12px; color:#64748b; }
+  .accordion-arrow { transition:transform 0.2s; font-size:12px; color:#9aa39a; }
   .accordion-arrow.open { transform:rotate(90deg); }
   .accordion-body { max-height:0; overflow:hidden; transition:max-height 0.35s ease; }
   .accordion-body.open { max-height:5000px; }
-  .param-desc { font-size:11px; color:#64748b; margin-top:4px; line-height:1.4; }
-  .group-desc { font-size:12px; color:#64748b; margin-top:4px; margin-bottom:0; line-height:1.5; }
+  .param-desc { font-size:11px; color:#8a917f; margin-top:4px; line-height:1.4; }
+  .group-desc { font-size:12px; color:#8a917f; margin-top:4px; margin-bottom:0; line-height:1.5; }
   .heat-dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:4px; }
   .heat-hot { background:#ef4444; }
-  .heat-warm { background:#eab308; }
+  .heat-warm { background:#e0a000; }
   .heat-cold { background:#3b82f6; }
-  .cat-dot { display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:6px; border:1px solid rgba(255,255,255,0.1); }
-  ::-webkit-scrollbar { width:6px; } ::-webkit-scrollbar-track { background:#0f1117; } ::-webkit-scrollbar-thumb { background:#2a2d3a; border-radius:3px; }
+  .cat-dot { display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:6px; border:1px solid rgba(0,0,0,0.12); }
+  ::-webkit-scrollbar { width:6px; } ::-webkit-scrollbar-track { background:#f0f3ea; } ::-webkit-scrollbar-thumb { background:#cdd4c2; border-radius:3px; }
 </style>
 </head>
-<body class="bg-panel-bg text-gray-200 min-h-screen flex">
+<body class="bg-panel-bg text-gray-800 min-h-screen flex">
 
 <!-- ===== Sidebar ===== -->
 <nav id="sidebar" class="w-56 bg-panel-card border-r border-panel-border flex flex-col h-screen sticky top-0 shrink-0">
@@ -83,7 +84,7 @@ tailwind.config = {
     <a onclick="switchTab('tools')" class="tab-btn block px-5 py-2.5 text-sm cursor-pointer hover:bg-panel-hover" data-tab="tools">🛠️ 工具</a>
   </div>
   <div class="px-5 py-4 border-t border-panel-border">
-    <p class="text-xs text-gray-600">kiwi-mem</p>
+    <p class="text-xs text-gray-400">kiwi-mem</p>
   </div>
 </nav>
 
@@ -102,15 +103,15 @@ tailwind.config = {
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
       <div class="stat-card bg-panel-card border border-panel-border rounded-lg p-5">
         <p class="text-xs text-gray-500 mb-1">記憶總數</p>
-        <p id="stat-memories" class="text-2xl font-bold text-kiwi-400">-</p>
+        <p id="stat-memories" class="text-2xl font-bold text-kiwi-600">-</p>
       </div>
       <div class="stat-card bg-panel-card border border-panel-border rounded-lg p-5">
         <p class="text-xs text-gray-500 mb-1">鎖定記憶</p>
-        <p id="stat-locked" class="text-2xl font-bold text-purple-400">-</p>
+        <p id="stat-locked" class="text-2xl font-bold text-purple-600">-</p>
       </div>
       <div class="stat-card bg-panel-card border border-panel-border rounded-lg p-5">
         <p class="text-xs text-gray-500 mb-1">供應商</p>
-        <p id="stat-providers" class="text-2xl font-bold text-blue-400">-</p>
+        <p id="stat-providers" class="text-2xl font-bold text-blue-600">-</p>
       </div>
       <div class="stat-card bg-panel-card border border-panel-border rounded-lg p-5">
         <p class="text-xs text-gray-500 mb-1">記憶系統</p>
@@ -120,13 +121,13 @@ tailwind.config = {
 
     <div class="bg-panel-card border border-panel-border rounded-lg p-5 mb-4">
       <p class="section-title">系統狀態</p>
-      <div id="sys-status" class="text-sm text-gray-400">載入中…</div>
+      <div id="sys-status" class="text-sm text-gray-600">載入中…</div>
       <div id="embed-status" class="text-sm mt-3 hidden"></div>
     </div>
 
     <div class="bg-panel-card border border-panel-border rounded-lg p-5">
       <p class="section-title">最近記憶</p>
-      <div id="recent-memories" class="text-sm text-gray-400">載入中…</div>
+      <div id="recent-memories" class="text-sm text-gray-600">載入中…</div>
     </div>
   </div>
 
@@ -138,7 +139,7 @@ tailwind.config = {
       <p class="section-title">外部 MCP Servers</p>
       <p class="text-xs text-gray-500 mb-3">建議把外部 MCP server 固定寫在設定裡；請求 body 裡的 mcp_servers 舊路徑仍可繼續使用。</p>
       <div class="flex items-center gap-3 mb-3 flex-wrap">
-        <label class="text-xs text-gray-400" for="external-mcp-mode">MCP 模式</label>
+        <label class="text-xs text-gray-600" for="external-mcp-mode">MCP 模式</label>
         <select id="external-mcp-mode" class="max-w-xs">
           <option value="off">禁用 off</option>
           <option value="auto">自動 auto</option>
@@ -152,7 +153,7 @@ tailwind.config = {
         <span id="external-mcp-servers-status" class="text-xs text-gray-500"></span>
       </div>
     </div>
-    <div id="config-area" class="text-sm text-gray-400">載入中…</div>
+    <div id="config-area" class="text-sm text-gray-600">載入中…</div>
   </div>
 
   <!-- ── Providers ── -->
@@ -182,7 +183,7 @@ tailwind.config = {
         <button class="btn btn-secondary" onclick="hideProviderForm()">取消</button>
       </div>
     </div>
-    <div id="providers-list" class="text-sm text-gray-400">載入中…</div>
+    <div id="providers-list" class="text-sm text-gray-600">載入中…</div>
   </div>
 
   <!-- ── Memories ── -->
@@ -210,8 +211,8 @@ tailwind.config = {
       <div class="config-row">
         <span class="config-label">重要度</span>
         <div class="config-value" style="display:flex; align-items:center; gap:12px;">
-          <input type="range" id="new-mem-importance" min="1" max="10" value="5" style="flex:1; accent-color:#4ade80;" oninput="document.getElementById('imp-display').textContent=this.value">
-          <span id="imp-display" style="min-width:24px; text-align:center; color:#4ade80; font-weight:600;">5</span>
+          <input type="range" id="new-mem-importance" min="1" max="10" value="5" style="flex:1; accent-color:#5d8a2c;" oninput="document.getElementById('imp-display').textContent=this.value">
+          <span id="imp-display" style="min-width:24px; text-align:center; color:#5d8a2c; font-weight:600;">5</span>
           <span class="text-xs text-gray-500">9-10 核心 · 7-8 重要 · 5-6 普通</span>
         </div>
       </div>
@@ -238,7 +239,7 @@ tailwind.config = {
         <option value="">全部分類</option>
       </select>
     </div>
-    <div id="memories-list" class="text-sm text-gray-400">載入中…</div>
+    <div id="memories-list" class="text-sm text-gray-600">載入中…</div>
     <div class="flex justify-center mt-4 gap-2" id="mem-pagination"></div>
   </div>
 
@@ -266,7 +267,7 @@ tailwind.config = {
       </div>
     </div>
 
-    <div id="categories-list" class="text-sm text-gray-400">載入中…</div>
+    <div id="categories-list" class="text-sm text-gray-600">載入中…</div>
   </div>
 
   <!-- ── System Prompt ── -->
@@ -290,7 +291,7 @@ tailwind.config = {
       <div class="bg-panel-card border border-panel-border rounded-lg p-5">
         <p class="font-semibold mb-1">🌙 Dream 記憶整合</p>
         <p class="text-xs text-gray-500 mb-4">觸發 AI 的"睡眠"－整理碎片、合併記憶、產生前瞻。</p>
-        <div id="dream-status" class="text-sm text-gray-400 mb-3"></div>
+        <div id="dream-status" class="text-sm text-gray-600 mb-3"></div>
         <button class="btn btn-primary" onclick="triggerDream()">開始 Dream</button>
       </div>
 
@@ -404,7 +405,7 @@ async function loadDashboard() {
     const status = await apiJson('/');
     document.getElementById('stat-memories').textContent = status.memories ?? '-';
     document.getElementById('stat-mem-enabled').textContent = status.memory_enabled ? '✅ 開啟' : '❌ 關閉';
-    document.getElementById('stat-mem-enabled').className = `text-2xl font-bold ${status.memory_enabled ? 'text-kiwi-400' : 'text-red-400'}`;
+    document.getElementById('stat-mem-enabled').className = `text-2xl font-bold ${status.memory_enabled ? 'text-kiwi-600' : 'text-red-500'}`;
 
     const statusLines = [
       `版本：${escHtml(status.version || '-')}`,
@@ -436,7 +437,7 @@ async function loadDashboard() {
     } else {
       document.getElementById('recent-memories').innerHTML = recent.map(m =>
         `<div class="py-2 border-b border-panel-border last:border-0">
-          <span class="text-gray-300">${escHtml(m.title || m.content?.slice(0, 60) || '#'+m.id)}</span>
+          <span class="text-gray-700">${escHtml(m.title || m.content?.slice(0, 60) || '#'+m.id)}</span>
           <span class="badge ${m.importance >= 8 ? 'imp-high' : m.importance >= 5 ? 'imp-mid' : 'imp-low'} ml-2">${m.importance}</span>
           ${m.is_permanent ? '<span class="badge imp-high ml-1">🔒</span>' : ''}
         </div>`
@@ -450,10 +451,10 @@ async function loadDashboard() {
     if (embed && !embed.error && embed.total_memories > 0) {
       el.classList.remove('hidden');
       if (embed.without_embedding > 0) {
-        el.innerHTML = `<span style="color:#fb923c">⚠️ 向量覆蓋 ${embed.coverage} — ${embed.without_embedding} 條記憶缺少 embedding，語意搜尋可能不完整。</span>
+        el.innerHTML = `<span style="color:#d97706">⚠️ 向量覆蓋 ${embed.coverage} — ${embed.without_embedding} 條記憶缺少 embedding，語意搜尋可能不完整。</span>
           <br><span class="text-gray-500 text-xs">前往「設定管理 → 預設模型」設定 嵌入embedding 模型，然後在「工具」頁面點選「向量遷移」。</span>`;
       } else {
-        el.innerHTML = `<span style="color:#4ade80">✅ 向量覆蓋 ${embed.coverage} — 所有記憶已嵌入</span>`;
+        el.innerHTML = `<span style="color:#5d8a2c">✅ 向量覆蓋 ${embed.coverage} — 所有記憶已嵌入</span>`;
       }
     }
   } catch(e) {}
@@ -564,7 +565,7 @@ async function loadConfig() {
     renderConfig(config);
     renderMcpServersConfig(config);
   } catch(e) {
-    document.getElementById('config-area').innerHTML = `<p class="text-red-400">載入失敗：${e.message}</p>`;
+    document.getElementById('config-area').innerHTML = `<p class="text-red-500">載入失敗：${e.message}</p>`;
   }
 }
 
@@ -786,7 +787,7 @@ async function loadProviders() {
       </div>
     `).join('');
   } catch(e) {
-    document.getElementById('providers-list').innerHTML = `<p class="text-red-400">載入失敗：${e.message}</p>`;
+    document.getElementById('providers-list').innerHTML = `<p class="text-red-500">載入失敗：${e.message}</p>`;
   }
 }
 
@@ -901,7 +902,7 @@ async function loadMemories() {
 
     renderMemories(memories, data.total_memories || 0);
   } catch(e) {
-    document.getElementById('memories-list').innerHTML = `<p class="text-red-400">載入失敗：${e.message}</p>`;
+    document.getElementById('memories-list').innerHTML = `<p class="text-red-500">載入失敗：${e.message}</p>`;
   }
 }
 
@@ -932,7 +933,7 @@ async function searchMemories() {
     const data = await apiJson(`/debug/memories?q=${encodeURIComponent(q)}&limit=50`);
     renderMemories(data.memories || [], data.total_memories || 0);
   } catch(e) {
-    document.getElementById('memories-list').innerHTML = `<p class="text-red-400">搜尋失敗：${e.message}</p>`;
+    document.getElementById('memories-list').innerHTML = `<p class="text-red-500">搜尋失敗：${e.message}</p>`;
   }
 }
 
@@ -943,7 +944,7 @@ function heatBadge(id, inlineHeat) {
   let cls = 'heat-cold', label = '冷';
   if (h > 0.7) { cls = 'heat-hot'; label = '熱'; }
   else if (h >= 0.3) { cls = 'heat-warm'; label = '温'; }
-  return `<span class="badge" style="background:rgba(100,116,139,0.12);color:#94a3b8"><span class="heat-dot ${cls}"></span>${h.toFixed(2)}</span>`;
+  return `<span class="badge" style="background:rgba(100,116,139,0.12);color:#6b7280"><span class="heat-dot ${cls}"></span>${h.toFixed(2)}</span>`;
 }
 
 function renderMemories(memories, total) {
@@ -960,13 +961,13 @@ function renderMemories(memories, total) {
     <div class="memory-card">
       <div class="flex justify-between items-start gap-4">
         <div class="flex-1 min-w-0">
-          ${m.title ? `<p class="font-semibold text-gray-200 mb-1">${escHtml(m.title)}</p>` : ''}
-          <p class="text-gray-400 text-sm">${escHtml(m.content?.slice(0, 200) || '')}</p>
+          ${m.title ? `<p class="font-semibold text-gray-800 mb-1">${escHtml(m.title)}</p>` : ''}
+          <p class="text-gray-600 text-sm">${escHtml(m.content?.slice(0, 200) || '')}</p>
           <div class="flex gap-2 mt-2 flex-wrap">
             <span class="badge ${m.importance >= 8 ? 'imp-high' : m.importance >= 5 ? 'imp-mid' : 'imp-low'}">重要度 ${m.importance}</span>
             ${m.is_permanent ? '<span class="badge imp-high">🔒 鎖定</span>' : ''}
             ${heatBadge(m.id, m.heat)}
-            ${m.category_name ? `<span class="badge" style="background:rgba(148,163,184,0.1);color:#94a3b8">${escHtml(m.category_name)}</span>` : ''}
+            ${m.category_name ? `<span class="badge" style="background:rgba(148,163,184,0.1);color:#6b7280">${escHtml(m.category_name)}</span>` : ''}
           </div>
         </div>
         <div class="flex flex-col gap-1 shrink-0">
@@ -1089,7 +1090,7 @@ async function loadCategories() {
     categoriesCache = cats;
     renderCategories(cats);
   } catch(e) {
-    document.getElementById('categories-list').innerHTML = `<p class="text-red-400">載入失敗：${e.message}</p>`;
+    document.getElementById('categories-list').innerHTML = `<p class="text-red-500">載入失敗：${e.message}</p>`;
   }
 }
 
