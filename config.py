@@ -114,11 +114,11 @@ CONFIG_SCHEMA = {
 # ============================================================
 
 def _env_or_default(env_name: str, default_val: str) -> tuple:
-    """解析"环境变量 > 默认值"。
+    """解析"環境變數 > 預設值"。
 
-    环境变量未设置、或被设成空串 / 纯空白时一律视为"未设置"，回落到默认值，
-    避免空环境变量（如 docker-compose 里 KEY=${KEY} 而 KEY 未定义）把默认值冲掉。
-    返回 (值, 来源)，来源为 'env' 或 'default'。
+    環境變數未設定、或被設成空串 / 純空白時一律視為"未設定"，回落到預設值，
+    避免空環境變數（如 docker-compose 裡 KEY=${KEY} 而 KEY 未定義）把預設值沖掉。
+    傳回 (值, 來源)，來源為 'env' 或 'default'。
     """
     if env_name:
         env_val = os.getenv(env_name)
@@ -233,7 +233,7 @@ async def get_config_float(key: str, fallback: float = 0.0) -> float:
 
 
 async def get_config_bool(key: str, fallback: bool = False) -> bool:
-    """获取布尔配置（接受 true/1/yes/on 与 false/0/no/off 等常见写法）"""
+    """取得布林配置（接受 true/1/yes/on 與 false/0/no/off 等常見寫法）"""
     val = await get_config(key)
     if val is None:
         return fallback

@@ -7,7 +7,7 @@ AI Memory Gateway — 帶有記憶系統的 LLM 轉發閘道
 1. 接收客戶端（Kelivo / ChatBox / 任何 OpenAI 相容客戶端）的訊息
 2. 自動搜尋資料庫中的相關記憶，注入 system prompt
 3. 轉發給 LLM API（支援 OpenRouter / OpenAI / 任何相容介面）
-4. 後台自動儲存對話 + 用 AI 擷取新記憶
+4. 後台自動儲存對話 + 用 AI 提取新記憶
 
 環境變數 MEMORY_ENABLED=false 時退化為純轉送閘道（第一階段）。
 """
@@ -88,25 +88,25 @@ ACCESS_TOKEN = os.getenv("ACCESS_TOKEN", "")
 # 动态配置读取（v3.1）
 # ============================================================
 # 配置优先级：数据库 > 环境变量 > 默认值
-# 以上三个变量保留作为启动时/数据库不可用时的降级值
+# 以上三个变量保留作为啟動时/数据库不可用时的降级值
 # 运行时通过以下函数读取最新配置
 
 async def get_memory_enabled() -> bool:
-    """读取记忆开关（动态）"""
+    """讀取記憶開關（動態）"""
     try:
         return await get_config_bool("memory_enabled", fallback=MEMORY_ENABLED)
     except Exception:
         return MEMORY_ENABLED
 
 async def get_max_inject() -> int:
-    """读取注入条数（动态）"""
+    """读取注入條數（動態）"""
     try:
         return await get_config_int("max_inject", fallback=MAX_MEMORIES_INJECT)
     except Exception:
         return MAX_MEMORIES_INJECT
 
 async def get_extract_interval() -> int:
-    """读取提取间隔（动态）"""
+    """讀取提取間隔（動態）"""
     try:
         return await get_config_int("extract_interval", fallback=MEMORY_EXTRACT_INTERVAL)
     except Exception:
@@ -137,7 +137,7 @@ _background_tasks: set = set()
 
 
 def _spawn_background_task(coro):
-    """启动后台任务并保留引用，避免在执行中被 GC 回收。"""
+    """啟動後台任務並保留引用，避免在執行中被 GC 回收。 """
     task = asyncio.create_task(coro)
     _background_tasks.add(task)
     task.add_done_callback(_background_tasks.discard)
@@ -149,7 +149,7 @@ def _spawn_background_task(coro):
 # ============================================================
 
 def load_system_prompt():
-    """从 system_prompt.txt 文件读取人设内容（降级方案）"""
+    """從 system_prompt.txt 檔案讀取人設內容（降級方案）"""
     prompt_path = os.path.join(os.path.dirname(__file__), "system_prompt.txt")
     try:
         with open(prompt_path, "r", encoding="utf-8") as f:
@@ -158,23 +158,23 @@ def load_system_prompt():
                 return content
     except FileNotFoundError:
         pass
-    print("ℹ️  未找到 system_prompt.txt 或文件为空，将不注入 system prompt")
+    print("ℹ️  未找到 system_prompt.txt 或檔案為空，將不注入 system prompt")
     return ""
 
 
-# 文件版作为启动降级值
+# 文件版作为啟動降级值
 _FILE_SYSTEM_PROMPT = load_system_prompt()
 # 运行时变量（可被数据库覆盖）
 SYSTEM_PROMPT = _FILE_SYSTEM_PROMPT
 
 if SYSTEM_PROMPT:
-    print(f"✅ 人设已加载（文件），长度：{len(SYSTEM_PROMPT)} 字符")
+    print(f"✅ 人設已載入（檔案），長度：{len(SYSTEM_PROMPT)} 字元")
 else:
-    print("ℹ️  无人设，纯转发模式")
+    print("ℹ️  無人設，純轉送模式")
 
 
 async def get_active_system_prompt() -> str:
-    """获取当前生效的 system prompt（数据库优先，文件降级）"""
+    """取得目前生效的 system prompt（資料庫優先，檔案降級）"""
     try:
         db_prompt = await get_system_prompt_from_db()
         if db_prompt is not None:
@@ -190,7 +190,7 @@ async def get_active_system_prompt() -> str:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """应用启动时初始化数据库和MCP，关闭时断开连接"""
+    """應用啟動時初始化資料庫和MCP，關閉時斷開連接"""
     digest_task = None
     dream_check_task = None
     
@@ -205,9 +205,9 @@ async def lifespan(app: FastAPI):
                     WHERE COALESCE(memory_type, 'fragment') != 'dream_deleted'
                 """)
             print(f"✅ 記憶系統已啟動，當前活躍記憶數量：{count}")
-            print(f"📊 記憶擷取間隔：每 {MEMORY_EXTRACT_INTERVAL} 輪對話擷取一次")
+            print(f"📊 記憶提取間隔：每 {MEMORY_EXTRACT_INTERVAL} 輪對話提取一次")
             
-            # v5.6：首次启动时将出厂默认 prompt 写入 config 表（空值才写入）
+            # v5.6：首次啟動时将出厂默认 prompt 写入 config 表（空值才写入）
             try:
                 factory = _get_factory_prompts()
                 seeded = 0
@@ -217,28 +217,28 @@ async def lifespan(app: FastAPI):
                         await set_config(key, default_text)
                         seeded += 1
                 if seeded > 0:
-                    print(f"📝 首次启动：写入了 {seeded} 个默认 prompt 到配置表")
+                    print(f"📝 首次啟動：寫入了 {seeded} 個預設 prompt 到設定表")
             except Exception as e:
-                print(f"⚠️  默认 prompt 初始化失败: {e}")
+                print(f"⚠️  預設 prompt 初始化失敗: {e}")
             
-            # 启动每日记忆整理调度器
+            # 啟動每日记忆整理调度器
             from daily_digest import daily_digest_scheduler
             digest_task = asyncio.create_task(daily_digest_scheduler())
             
-            # 启动自动 Dream 检查器（每小时检查24h无活动）
+            # 啟動自动 Dream 检查器（每小时检查24h无活动）
             from dream import auto_dream_scheduler
             dream_check_task = asyncio.create_task(auto_dream_scheduler())
             
         except Exception as e:
-            print(f"⚠️  数据库初始化失败: {e}")
-            print("⚠️  记忆系统将不可用，但网关仍可正常转发")
+            print(f"⚠️  資料庫初始化失敗: {e}")
+            print("⚠️  記憶系統將無法使用，但網關仍可正常轉送")
     else:
-        print("ℹ️  记忆系统已关闭（设置 MEMORY_ENABLED=true 开启）")
+        print("ℹ️  記憶系統已關閉（設置 MEMORY_ENABLED=true 開啟）")
     
-    # 启动 MCP session managers（v5.4：两个模块）
+    # 啟動 MCP session managers（v5.4：两个模块）
     async with mcp_memory.session_manager.run():
         async with mcp_calendar.session_manager.run():
-            print("✅ MCP server 已启动（/memory/mcp + /calendar/mcp）")
+            print("✅ MCP server 已啟動（/memory/mcp + /calendar/mcp）")
 
             # v6.3：仅当 tool_drawer_enabled=true 时初始化工具抽屉
             # （默认 false，开源用户行为不变；抽屉打开后通过向量路由按需展开工具）
@@ -252,7 +252,7 @@ async def lifespan(app: FastAPI):
                     await init_drawer()
                     print("✅ 工具抽屉已初始化")
                 except Exception as e:
-                    print(f"⚠️ 工具抽屉初始化失败: {e}（降级为传统模式）")
+                    print(f"⚠️ 工具抽屜初始化失敗: {e}（降級為傳統模式）")
 
             yield
     
@@ -1495,7 +1495,7 @@ async def chat_completions(request: Request):
 
     if drawer_enabled:
         # ---- 抽屉模式：向量路由按需展开内部工具 + 外部 MCP 双轨 ----
-        # Lazy init：toggle 启动时为 false、运行时打开的场景下，lifespan 没跑过
+        # Lazy init：toggle 啟動时为 false、运行时打开的场景下，lifespan 没跑过
         # init_drawer，此时 CATEGORIES 为空会让 route_tools 返回 0 工具，叠加
         # 下面的 `not drawer_enabled` 门控会让传统工具也消失。这里幂等调用兜底。
         try:
@@ -1663,11 +1663,11 @@ async def chat_completions(request: Request):
         openai_tools.extend(_reminder_tools)
         for t in _reminder_tools:
             tool_map[t["function"]["name"]] = {"type": "gateway_builtin", "handler": "reminder"}
-        print(f"⏰ 提醒工具已注册（关键词命中：{user_message[:30]}）")
+        print(f"⏰ 提醒工具已註冊（關鍵字命中：{user_message[:30]}）")
 
     # ========== Tool Call 模式（MCP 和/或 auto 搜索） ==========
     if openai_tools and is_stream:
-        print(f"🔧 工具模式: 共 {len(openai_tools)} 个工具可用")
+        print(f"🔧 工具模式: 共 {len(openai_tools)} 個工具可用")
 
         return StreamingResponse(
             _stream_with_tools(
@@ -1723,7 +1723,7 @@ async def chat_completions(request: Request):
                     )
                 
                 if dream_triggered:
-                    print(f"🌙 检测到 Dream 标记，后台启动 Dream（非流式响应无 SSE 事件）...")
+                    print(f"🌙 偵測到 Dream 標記，後台啟動 Dream（非流式回應無 SSE 事件）...")
                     _launch_dream_from_marker()
                 return JSONResponse(status_code=200, content=resp_data)
             else:
@@ -2022,7 +2022,7 @@ async def _stream_with_tools(messages, tools, tool_map, model, temperature, tool
                     yield f"data: {json.dumps({'ev_memory': mem_result}, ensure_ascii=False)}\n\n"
             # Dream 事件必须在 [DONE] 之前
             if dream_triggered:
-                print(f"🌙 检测到 Dream 标记，通知前端启动 Dream...")
+                print(f"🌙 检测到 Dream 标记，通知前端啟動 Dream...")
                 yield f"data: {json.dumps({'ev_dream': {'triggered': True}}, ensure_ascii=False)}\n\n"
             # [DONE] 作为流的最后一个事件
             yield "data: [DONE]\n\n"
@@ -2201,7 +2201,7 @@ def _estimate_tokens(text: str) -> int:
 
 
 def _launch_dream_from_marker():
-    """从聊天回复里的 Dream 标记启动一次后台 Dream。"""
+    """从聊天回复里的 Dream 标记啟動一次后台 Dream。"""
     async def _bg_dream():
         try:
             from dream import run_dream
@@ -2357,7 +2357,7 @@ async def stream_and_capture(headers: dict, body: dict, session_id: str, user_me
 
     # Dream 触发：在 [DONE] 之前推送，由前端连接 Dream SSE 获取进度
     if dream_triggered:
-        print(f"🌙 检测到 Dream 标记，通知前端启动 Dream...")
+        print(f"🌙 检测到 Dream 标记，通知前端啟動 Dream...")
         yield f"data: {json.dumps({'ev_dream': {'triggered': True}}, ensure_ascii=False)}\n\n".encode("utf-8")
 
     # [DONE] 作为流的最后一个事件（上游/适配器的 [DONE] 已在上面被抑制）
@@ -4510,12 +4510,12 @@ app.mount("/calendar", get_calendar_mcp_app())
 
 
 # ============================================================
-# 启动入口
+# 啟動入口
 # ============================================================
 
 if __name__ == "__main__":
     import uvicorn
-    print(f"🚀 AI Memory Gateway 启动中... 端口 {PORT}")
+    print(f"🚀 AI Memory Gateway 啟動中... 端口 {PORT}")
     print(f"📝 人设长度：{len(SYSTEM_PROMPT)} 字符")
     print(f"🤖 默认模型：{DEFAULT_MODEL}")
     print(f"🔗 API 地址：{API_BASE_URL}")

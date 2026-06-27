@@ -336,7 +336,7 @@ async def run_dream(trigger_type: str = "manual", model_override: str = None):
                 await update_dream_log(dream_id, status="interrupted",
                                         finished_at=datetime.now(TZ_CST),
                                         dream_narrative=full_narrative, **stats)
-                yield {"type": "narrative", "data": "嗯……？怎么了……"}
+                yield {"type": "narrative", "data": "嗯？怎麼了……？"}
                 yield {"type": "complete", "data": {"dream_id": dream_id, "interrupted": True, **stats}}
                 # 标记已处理的碎片
                 await mark_memories_dreamed(processed_memory_ids)
@@ -429,9 +429,9 @@ async def _execute_dream_action(action: dict, dream_id: int, stats: dict) -> dic
             if not ids:
                 pass
             elif not merged:
-                print(f"   ⚠️ merge 动作 merged_content 为空，跳过整个合并，原始碎片 {ids} 保持不变")
+                print(f"   ⚠️ merge 動作 merged_content 為空，跳過整個合併，原始片段 {ids} 保持不變")
                 result["skipped"] = True
-                result["reason"] = "merged_content 为空，拒绝软删除原始碎片"
+                result["reason"] = "merged_content 為空，拒絕軟刪除原始碎片"
             else:
                 title = action.get("merged_title", "")
                 from database import save_memory, get_embedding
