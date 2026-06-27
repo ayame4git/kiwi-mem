@@ -133,7 +133,7 @@ tailwind.config = {
   <!-- ── Config ── -->
   <div id="tab-config" class="tab-content fade-in hidden">
     <h2 class="text-xl font-semibold mb-2">⚙️ 配置管理</h2>
-    <p class="text-sm text-gray-500 mb-6">修改后即时生效，不需要重启服务。点击分组标题展开/收起。</p>
+    <p class="text-sm text-gray-500 mb-6">修改後即時生效，不需要重啟服務。點擊分組標題展開/收起。</p>
     <div id="external-mcp-servers-card" class="bg-panel-card border border-panel-border rounded-lg p-5 mb-4">
       <p class="section-title">外部 MCP Servers</p>
       <p class="text-xs text-gray-500 mb-3">建議把外部 MCP server 固定寫在設定裡；請求 body 裡的 mcp_servers 舊路徑仍可繼續使用。</p>
@@ -349,7 +349,7 @@ async function api(path, opts = {}) {
   const url = TOKEN && !opts.headers?.Authorization ? `${API}${path}${sep}token=${TOKEN}` : `${API}${path}`;
   const res = await fetch(url, { headers: authHeaders(), ...opts });
   if (res.status === 401) {
-    TOKEN = prompt('请输入 ACCESS_TOKEN：') || '';
+    TOKEN = prompt('請輸入 ACCESS_TOKEN：') || '';
     localStorage.setItem('kiwi_admin_token', TOKEN);
     return api(path, opts);
   }

@@ -65,7 +65,7 @@ API_KEY = os.getenv("API_KEY", "")
 API_BASE_URL = os.getenv("API_BASE_URL", "https://openrouter.ai/api/v1/chat/completions")
 
 # 默认模型（如果客户端没指定就用这个）
-DEFAULT_MODEL = os.getenv("DEFAULT_MODEL", "anthropic/claude-sonnet-4")
+DEFAULT_MODEL = os.getenv("DEFAULT_MODEL", "anthropic/claude-sonnet-4.6")
 
 # 网关端口
 PORT = int(os.getenv("PORT", "8080"))

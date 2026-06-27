@@ -426,10 +426,10 @@ async def _execute_dream_action(action: dict, dream_id: int, stats: dict) -> dic
             # 确保 ID 是整数（LLM 可能返回字符串）
             ids = [int(i) for i in ids if str(i).isdigit()]
             if ids:
-                # 软删除被合并的碎片
+                # 软删除被合併的碎片
                 await soft_delete_memories(ids)
                 stats["memories_merged"] += len(ids)
-                # 创建合并后的新记忆
+                # 创建合併后的新记忆
                 from database import save_memory, get_embedding
                 merged = action.get("merged_content", "")
                 title = action.get("merged_title", "")
@@ -448,9 +448,9 @@ async def _execute_dream_action(action: dict, dream_id: int, stats: dict) -> dic
                 result["merged"] = len(ids)
                 if new_merge_id:
                     result["new_id"] = new_merge_id
-                    print(f"   🔗 合并 {len(ids)} 條碎片 → #{new_merge_id} {title}")
+                    print(f"   🔗 合併 {len(ids)} 條碎片 → #{new_merge_id} {title}")
                 else:
-                    print(f"   ⚠️ 合并 {len(ids)} 條碎片但 merged_content 為空，未創造新記憶")
+                    print(f"   ⚠️ 合併 {len(ids)} 條碎片但 merged_content 為空，未創造新記憶")
 
         elif action_type == "promote":
             mid = action.get("memory_id")

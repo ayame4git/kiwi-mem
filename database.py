@@ -775,7 +775,7 @@ def calculate_heat(row, params: dict = None) -> float:
     created_at = row.get("created_at")
     
     # --- 冷启动保护 ---
-    # 如果一条記憶从未被搜到过（活躍度系统还没有数据），
+    # 如果一條記憶从未被搜到过（活躍度系统还没有数据），
     # 不走遗忘曲线，给一个基于 importance 的稳定活躍度。
     # 等第一次被搜到后（access_count > 0），遗忘曲线才开始生效。
     # emotional_weight <= 2 视为低情绪，也走冷启动保护
@@ -905,7 +905,7 @@ async def get_handoff_messages(limit: int = 6, exclude_conversation_id: str = No
     """
     pool = await get_pool()
     async with pool.acquire() as conn:
-        # 找最近一个至少有 4 条消息（2 轮来回）的对话，排除当前对话本身
+        # 找最近一个至少有 4 條消息（2 轮来回）的对话，排除当前对话本身
         conv = await conn.fetchrow("""
             SELECT c.id, c.title FROM chat_conversations c
             WHERE ($1::text IS NULL OR c.id <> $1)
@@ -919,7 +919,7 @@ async def get_handoff_messages(limit: int = 6, exclude_conversation_id: str = No
         if not conv:
             return [], ""
         
-        # 取最后 N 条消息
+        # 取最后 N 條消息
         rows = await conn.fetch("""
             SELECT role, content FROM chat_messages 
             WHERE conversation_id = $1 AND role IN ('user', 'assistant')
@@ -993,7 +993,7 @@ async def clear_all_memories() -> int:
 
 
 async def update_memory(memory_id: int, content: str = None, importance: int = None, title: str = None, category_id: object = "UNSET") -> bool:
-    """更新单条記憶的內容、标题、重要程度或分类（內容/标题变化时重新生成 embedding）"""
+    """更新单條記憶的內容、标题、重要程度或分类（內容/标题变化时重新生成 embedding）"""
     pool = await get_pool()
     async with pool.acquire() as conn:
         # 先获取当前记录（用于合并 embedding 生成）
@@ -1026,7 +1026,7 @@ async def update_memory(memory_id: int, content: str = None, importance: int = N
                 sets.append(f"content = ${idx}")
                 params.append(content)
                 idx += 1
-                # 內容变了，让 Dream 重新审视这条碎片
+                # 內容变了，让 Dream 重新审视这條碎片
                 sets.append("dream_processed_at = NULL")
             
             if title is not None:
@@ -1069,7 +1069,7 @@ async def track_memory_recall(memory_ids: list, query: str):
     query_hash = hashlib.md5(query.strip()[:100].encode()).hexdigest()[:8]
     pool = await get_pool()
     async with pool.acquire() as conn:
-        # 单条 UPDATE 合并 access_count + query_hashes，保证原子性
+        # 单條 UPDATE 合并 access_count + query_hashes，保证原子性
         try:
             await conn.execute("""
                 UPDATE memories
@@ -1187,13 +1187,13 @@ async def search_memories(query: str, limit: int = 10, track_recall: bool = True
             v_only = sum(1 for r in results if r.get("_source") == "vector_only")
             k_only = sum(1 for r in results if r.get("_source") == "keyword_only")
             both = sum(1 for r in results if r.get("_source") == "both")
-            print(f"🔍 RRF 混合搜索 '{query[:30]}...' → 向量{len(vec_results)}条 + 关键词{len(kw_results)}条 → 合并top-{len(results)}（双命中{both}/仅向量{v_only}/仅关键词{k_only}，阈值{semantic_threshold:.3f}）")
+            print(f"🔍 RRF 混合搜索 '{query[:30]}...' → 向量{len(vec_results)}條 + 关键词{len(kw_results)}條 → 合并top-{len(results)}（双命中{both}/仅向量{v_only}/仅关键词{k_only}，阈值{semantic_threshold:.3f}）")
         elif vec_results:
             results = vec_results[:limit]
-            print(f"🔍 向量搜索 '{query[:30]}...' → {len(vec_results)}条（关键词无结果，阈值{semantic_threshold:.3f}）")
+            print(f"🔍 向量搜索 '{query[:30]}...' → {len(vec_results)}條（关键词无结果，阈值{semantic_threshold:.3f}）")
         elif kw_results:
             results = kw_results[:limit]
-            print(f"🔍 关键词搜索 '{query[:30]}...' → {len(kw_results)}条（向量无结果，阈值{semantic_threshold:.3f}）")
+            print(f"🔍 关键词搜索 '{query[:30]}...' → {len(kw_results)}條（向量无结果，阈值{semantic_threshold:.3f}）")
         else:
             results = []
             print(f"🔍 搜索 '{query[:30]}...' → 无结果（阈值{semantic_threshold:.3f}）")
@@ -1226,7 +1226,7 @@ async def _vector_search(query_embedding: list, limit: int, heat_params: dict, p
     semantic_threshold = heat_params.get("_semantic_threshold", 0.25)
     pool = await get_pool()
     async with pool.acquire() as conn:
-        # 构建專案过滤条件
+        # 构建專案过滤條件
         if project_id:
             project_filter = "AND (m.project_id IS NULL OR m.project_id = $1)"
             rows = await conn.fetch(
@@ -1323,7 +1323,7 @@ async def _vector_search(query_embedding: list, limit: int, heat_params: dict, p
     scored.sort(key=lambda x: x["score"], reverse=True)
     
     if no_embedding_count:
-        print(f"   ⚠️  {no_embedding_count} 条記憶缺少向量")
+        print(f"   ⚠️  {no_embedding_count} 條記憶缺少向量")
     
     return scored[:limit]
 
@@ -1335,7 +1335,7 @@ def _rrf_merge(vec_results: list, kw_results: list, k: int = 60, final_limit: in
     RRF 公式：rrf_score(d) = Σ 1 / (k + rank_i)
     k=60 是业界标准值，让排名靠后的结果权重衰减温和。
     
-    两路搜到同一条記憶 → 分数叠加（双命中加权更高）
+    两路搜到同一條記憶 → 分数叠加（双命中加权更高）
     只有一路搜到 → 也保留（单路命中仍有价值）
     """
     rrf_scores = {}   # id → rrf_score
@@ -1353,7 +1353,7 @@ def _rrf_merge(vec_results: list, kw_results: list, k: int = 60, final_limit: in
     for rank, item in enumerate(kw_results):
         mid = item["id"]
         rrf_scores[mid] = rrf_scores.get(mid, 0) + 1.0 / (k + rank + 1)
-        # 如果向量搜索已经有这条，保留向量版（字段更全，有similarity和heat）
+        # 如果向量搜索已经有这條，保留向量版（字段更全，有similarity和heat）
         if mid not in result_map:
             result_map[mid] = item
         source_map.setdefault(mid, set()).add("keyword")
@@ -1383,7 +1383,7 @@ def _rrf_merge(vec_results: list, kw_results: list, k: int = 60, final_limit: in
 
 async def _check_auto_lock(memory_ids: list, heat_params: dict = None):
     """
-    检查刚被召回的記憶是否达到自动锁定条件。
+    检查刚被召回的記憶是否达到自动锁定條件。
     
     高敏感人脑模型：
     - 普通記憶：access_count >= 10 且 query_diversity >= 5（跨了很多场景都被想起 → 核心认知）
@@ -1457,7 +1457,7 @@ async def _check_auto_lock(memory_ids: list, heat_params: dict = None):
 
 async def soften_memory(memory_id: int, softened_content: str, target_resolution: float = 0.5, extend_days: int = 30) -> bool:
     """
-    柔化一条記憶 —— 用 LLM 压缩后的內容替换原文，降低精度但延长寿命。
+    柔化一條記憶 —— 用 LLM 压缩后的內容替换原文，降低精度但延长寿命。
     """
     pool = await get_pool()
     async with pool.acquire() as conn:
@@ -1911,7 +1911,7 @@ async def migrate_embeddings(batch_size: int = 20) -> dict:
     migrated = 0
     failed = 0
     
-    print(f"🔄 开始迁移 {total} 条記憶的向量...")
+    print(f"🔄 开始迁移 {total} 條記憶的向量...")
     
     # 分批处理
     for i in range(0, total, batch_size):
@@ -1919,7 +1919,7 @@ async def migrate_embeddings(batch_size: int = 20) -> dict:
         texts = [row["content"] for row in batch]
         ids = [row["id"] for row in batch]
         
-        print(f"   批次 {i//batch_size + 1}: 处理 {len(batch)} 条 (#{ids[0]} ~ #{ids[-1]})")
+        print(f"   批次 {i//batch_size + 1}: 处理 {len(batch)} 條 (#{ids[0]} ~ #{ids[-1]})")
         
         embeddings = await get_embeddings_batch(texts)
         
@@ -1935,7 +1935,7 @@ async def migrate_embeddings(batch_size: int = 20) -> dict:
                     failed += 1
                     print(f"   ⚠️  #{row_id} embedding 生成失敗")
     
-    print(f"✅ 迁移完成：{migrated} 成功，{failed} 失敗，共 {total} 条")
+    print(f"✅ 迁移完成：{migrated} 成功，{failed} 失敗，共 {total} 條")
     
     return {
         "status": "done",
@@ -2540,7 +2540,7 @@ def _parse_time(val):
 # ============================================================
 
 async def create_reminder(reminder: dict) -> dict:
-    """创建一条提醒"""
+    """创建一條提醒"""
     pool = await get_pool()
     r = reminder
     rid = r.get("id", f"rem-{_dt.now(_tz.utc).strftime('%Y%m%d%H%M%S')}-{os.urandom(3).hex()}")
@@ -2623,7 +2623,7 @@ async def update_reminder(rid: str, updates: dict) -> bool:
 
 
 async def delete_reminder(rid: str) -> bool:
-    """删除一条提醒"""
+    """删除一條提醒"""
     pool = await get_pool()
     async with pool.acquire() as conn:
         result = await conn.execute("DELETE FROM reminders WHERE id = $1", rid)
@@ -2656,7 +2656,7 @@ async def get_due_reminders() -> list:
 
 async def fire_reminder(rid: str, repeat_type: str, repeat_config: dict = None) -> bool:
     """
-    触发一条提醒：
+    触发一條提醒：
     - 一次性(once)：标记为 completed
     - 循环(daily/weekly/custom)：计算下一次触发时间，保持 pending
     """
@@ -2793,8 +2793,8 @@ async def delete_calendar_page(date_str: str, page_type: str = "day"):
 async def get_calendar_for_injection(lookback_days: int = 365):
     """
     v5.5 俄罗斯套娃式日历层级注入：
-    查询最近 N 天內所有日历页面，回傳按层级去重后的条目列表。
-    已被更高层级覆盖的条目不回傳。
+    查询最近 N 天內所有日历页面，回傳按层级去重后的條目列表。
+    已被更高层级覆盖的條目不回傳。
     回傳 [{type, date, label, digest, summary, keywords}, ...]
     """
     from datetime import date as date_cls, timedelta
@@ -3166,7 +3166,7 @@ async def get_aging_memories(min_age_days: int = 5, limit: int = 20, cooldown_da
     """
     获取适合柔化的老碎片（v5.9）
     
-    条件：
+    條件：
     - 已经被 Dream 处理过（不是新碎片）
     - 未锁定
     - 仍然活着
@@ -3339,7 +3339,7 @@ async def get_dream_history(limit: int = 10):
 
 async def get_memory_heat_report(limit: int = 50):
     """
-    获取記憶活躍度报告 — 按活躍度排序，显示每条記憶的活躍度和召回数据
+    获取記憶活躍度报告 — 按活躍度排序，显示每條記憶的活躍度和召回数据
     用于 /debug/memory-heat 接口
     """
     pool = await get_pool()
@@ -3688,7 +3688,7 @@ async def delete_file_chunks(project_id: str, file_id: str) -> int:
         )
         count = int(result.split()[-1]) if result else 0
         if count:
-            print(f"🗑️ 删除了文件块 {count} 条（專案 {project_id}, 文件 {file_id}）")
+            print(f"🗑️ 删除了文件块 {count} 條（專案 {project_id}, 文件 {file_id}）")
         return count
 
 
@@ -3702,7 +3702,7 @@ async def delete_all_file_chunks(project_id: str) -> int:
         )
         count = int(result.split()[-1]) if result else 0
         if count:
-            print(f"🗑️ 删除了專案所有文件块 {count} 条（專案 {project_id}）")
+            print(f"🗑️ 删除了專案所有文件块 {count} 條（專案 {project_id}）")
         return count
 
 
@@ -3717,8 +3717,8 @@ async def search_chat_messages(query: str, project_id: str = None, limit: int = 
     参数：
         query: 搜索关键词
         project_id: 專案ID（提供时只搜该專案內的对话，'none' 表示只搜无專案的对话）
-        limit: 最多回傳多少条匹配
-        context_size: 每条匹配上下各取几条消息作为上下文
+        limit: 最多回傳多少條匹配
+        context_size: 每條匹配上下各取几條消息作为上下文
     
     回傳按对话分组的结果，每组包含对话信息和匹配消息（含上下文）。
     """
@@ -3777,7 +3777,7 @@ async def search_chat_messages(query: str, project_id: str = None, limit: int = 
         """
         title_rows = await conn.fetch(title_sql, *title_params)
         
-        # 为每条匹配消息获取上下文
+        # 为每條匹配消息获取上下文
         results_by_conv = {}
         
         for row in msg_rows:
@@ -3792,7 +3792,7 @@ async def search_chat_messages(query: str, project_id: str = None, limit: int = 
                     "matches": [],
                 }
             
-            # 获取该消息前后 context_size 条消息
+            # 获取该消息前后 context_size 條消息
             ctx_rows = await conn.fetch("""
                 SELECT id, role, content, time, sort_order
                 FROM chat_messages
